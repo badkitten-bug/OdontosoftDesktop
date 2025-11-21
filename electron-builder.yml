@@ -1,0 +1,39 @@
+appId: com.odontosoft.desktop
+productName: OdontoSoft Desktop
+copyright: Copyright © 2024 OdontoSoft
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - app/main/**/*
+  - app/renderer/dist/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+

@@ -1,0 +1,8 @@
+# Configuración de Bun para OdontoSoft Desktop
+[install]
+# Usar el mismo lockfile que npm para compatibilidad
+lockfile = "package-lock.json"
+
+[install.scopes]
+# Configuración de scopes si es necesario
+

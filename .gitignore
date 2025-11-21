@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+app/main/node_modules/
+app/renderer/node_modules/
+
+# Build outputs
+dist/
+build/
+app/renderer/dist/
+app/renderer/build/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+app/main/*.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Electron
+out/
+release/
+
+# Environment
+.env
+.env.local

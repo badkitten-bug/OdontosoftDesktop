@@ -1,0 +1,35 @@
+{
+  "name": "odontosoft-desktop",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio para clínicas odontológicas",
+  "main": "app/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"bun run dev:renderer\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:renderer": "cd app/renderer && bun run dev",
+    "build": "bun run build:renderer",
+    "build:renderer": "cd app/renderer && bun run build",
+    "make": "bun run build && electron-builder",
+    "postinstall": "cd app/main && bun install && cd ../renderer && bun install && cd ../main && npx electron-rebuild -f -w better-sqlite3",
+    "rebuild": "cd app/main && npx electron-rebuild -f -w better-sqlite3",
+    "test": "bun run test:main && bun run test:renderer",
+    "test:main": "cd app/main && bun run test",
+    "test:renderer": "cd app/renderer && bun run test",
+    "test:watch": "concurrently -k \"bun run test:main --watch\" \"bun run test:renderer --watch\"",
+    "test:coverage": "bun run test:main --coverage && bun run test:renderer --coverage"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "odontologia",
+    "clinica"
+  ],
+  "author": "OdontoSoft",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9",
+    "wait-on": "^7.2.0"
+  }
+}
