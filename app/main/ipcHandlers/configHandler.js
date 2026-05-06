@@ -1,4 +1,5 @@
 const { getDatabase } = require('../db/database');
+const { requireRol } = require('../auth/sesiones');
 
 /**
  * Registra los handlers IPC para configuración (campos dinámicos)
@@ -18,8 +19,9 @@ function register(ipcMain) {
   });
 
   // Inicializar campos base para una entidad
-  ipcMain.handle('init-campos-base', async (event, entidad) => {
+  ipcMain.handle('init-campos-base', async (event, sessionId, entidad) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       
       const camposBaseMap = {
@@ -105,8 +107,9 @@ function register(ipcMain) {
   });
 
   // Agregar nuevo campo dinámico
-  ipcMain.handle('add-campo-dinamico', async (event, data) => {
+  ipcMain.handle('add-campo-dinamico', async (event, sessionId, data) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const { 
         entidad, 
@@ -150,8 +153,9 @@ function register(ipcMain) {
   });
 
   // Actualizar campo dinámico
-  ipcMain.handle('update-campo-dinamico', async (event, id, data) => {
+  ipcMain.handle('update-campo-dinamico', async (event, sessionId, id, data) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const { 
         nombre_campo, 
@@ -197,8 +201,9 @@ function register(ipcMain) {
   });
 
   // Eliminar campo dinámico
-  ipcMain.handle('delete-campo-dinamico', async (event, id) => {
+  ipcMain.handle('delete-campo-dinamico', async (event, sessionId, id) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const result = db.prepare('DELETE FROM campos_config WHERE id = ?').run(id);
 
@@ -213,8 +218,9 @@ function register(ipcMain) {
   });
 
   // Actualizar orden de múltiples campos (para reordenamiento)
-  ipcMain.handle('update-orden-campos', async (event, campos) => {
+  ipcMain.handle('update-orden-campos', async (event, sessionId, campos) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const transaccion = db.transaction(() => {
         const stmt = db.prepare('UPDATE campos_config SET orden = ? WHERE id = ?');

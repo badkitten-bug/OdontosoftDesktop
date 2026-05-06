@@ -25,6 +25,9 @@
   ],
   "author": "OdontoSoft",
   "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^9.2.2"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",

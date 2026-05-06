@@ -45,7 +45,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
     });
   };
 
-  const renderField = (campo) => {
+  const renderField = (campo, fieldId) => {
     // Normalizar campos base y dinámicos
     // Usar 'name' para la clave del formData y 'nombre_campo' solo para el label
     // Si no hay 'name', generar uno a partir de 'nombre_campo' normalizado
@@ -69,6 +69,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       case 'text':
         return (
           <input
+            id={fieldId}
             type="text"
             className="input input-bordered w-full"
             placeholder={labelCampo}
@@ -81,6 +82,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       case 'number':
         return (
           <input
+            id={fieldId}
             type="number"
             className="input input-bordered w-full"
             placeholder={labelCampo}
@@ -93,6 +95,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       case 'email':
         return (
           <input
+            id={fieldId}
             type="email"
             className="input input-bordered w-full"
             placeholder={labelCampo}
@@ -105,6 +108,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       case 'date':
         return (
           <input
+            id={fieldId}
             type="date"
             className="input input-bordered w-full"
             value={value}
@@ -116,6 +120,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       case 'textarea':
         return (
           <textarea
+            id={fieldId}
             className="textarea textarea-bordered w-full"
             placeholder={labelCampo}
             value={value}
@@ -141,6 +146,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
         
         return (
           <select
+            id={fieldId}
             className="select select-bordered w-full"
             value={value}
             onChange={(e) => handleChange(keyCampo, e.target.value)}
@@ -158,6 +164,7 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
       default:
         return (
           <input
+            id={fieldId}
             type="text"
             className="input input-bordered w-full"
             placeholder={labelCampo}
@@ -287,8 +294,8 @@ function DynamicForm({ entidad, formData, onChange, camposBase = [], camposDinam
                     {esRequerido && <span className="text-red-500 ml-1">*</span>}
                   </span>
                 </label>
-                <div id={fieldId}>
-                  {renderField({ ...campo, name: keyCampo, nombre_campo: labelCampo })}
+                <div>
+                  {renderField({ ...campo, name: keyCampo, nombre_campo: labelCampo }, fieldId)}
                 </div>
               </div>
             );

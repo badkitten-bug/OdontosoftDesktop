@@ -35,14 +35,38 @@ function createWindow() {
     titleBarStyle: 'default',
   });
 
-  // En desarrollo, carga desde Vite
-  if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+  if (isDev) {
+    // Desarrollo: carga desde Vite y abre DevTools
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    // En producción, carga desde el build
-    mainWindow.loadFile(path.join(__dirname, '../renderer/dist/index.html'));
+    // Producción: carga desde el build empaquetado, sin DevTools
+    const indexPath = path.join(__dirname, '../renderer/dist/index.html');
+    console.log('Cargando index.html desde', indexPath);
+    mainWindow.loadFile(indexPath);
+
+    // Atajo oculto para abrir DevTools en producción si hace falta soporte:
+    // Ctrl+Shift+Alt+D
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (
+        input.type === 'keyDown' &&
+        input.control &&
+        input.shift &&
+        input.alt &&
+        input.key &&
+        input.key.toLowerCase() === 'd'
+      ) {
+        mainWindow.webContents.toggleDevTools();
+      }
+    });
   }
+
+  // Loguear errores de carga de la ventana (útil en producción)
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Error al cargar contenido:', errorCode, errorDescription, validatedURL);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -76,6 +100,10 @@ function registerAllHandlers() {
 app.whenReady().then(async () => {
   let dbInitialized = false;
   try {
+    // Marcar entorno (desarrollo vs producción) para la base de datos
+    // Esto se usa en database.js para decidir si usar una BD separada para desarrollo
+    process.env.ODONTOSOFT_ENV = app.isPackaged ? 'production' : 'development';
+
     initDatabase();
     // Verificar que la base de datos se inicializó correctamente
     const db = getDatabase();

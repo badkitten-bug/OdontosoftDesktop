@@ -185,6 +185,14 @@ export const addArchivoHistorial = (data) => window.electronAPI?.addArchivoHisto
 export const deleteArchivoHistorial = (id) => window.electronAPI?.deleteArchivoHistorial(id) || Promise.resolve({});
 export const getRutaArchivo = (id) => window.electronAPI?.getRutaArchivo(id) || Promise.resolve(null);
 
+// Sesión
+export const setSessionId = (id) => window.electronAPI?.setSessionId(id);
+export const clearSessionId = () => window.electronAPI?.clearSessionId();
+export const whoami = () => window.electronAPI?.whoami() || Promise.resolve({ autenticado: false });
+export const existenUsuarios = () => window.electronAPI?.existenUsuarios() || Promise.resolve({ existen: false, total: 0 });
+export const crearPrimerAdmin = (data) => window.electronAPI?.crearPrimerAdmin(data) || Promise.resolve({ success: false });
+export const logout = () => window.electronAPI?.logout() || Promise.resolve({ success: true });
+
 // Usuarios y Permisos
 export const getUsuarios = () => window.electronAPI?.getUsuarios() || Promise.resolve([]);
 export const getUsuario = (id) => window.electronAPI?.getUsuario(id) || Promise.resolve(null);

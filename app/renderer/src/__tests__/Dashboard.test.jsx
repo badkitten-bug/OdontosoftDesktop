@@ -14,7 +14,7 @@ jest.mock('../services/dbService', () => ({
 
 const renderWithProviders = (ui) => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <UserProvider>
         {ui}
       </UserProvider>
@@ -32,16 +32,18 @@ describe('Dashboard Component', () => {
     localStorage.setItem('currentUser', JSON.stringify({ id: 1, username: 'admin', rol: 'admin' }));
   });
 
-  test('muestra el título del dashboard', () => {
+  test('muestra el título del dashboard', async () => {
     renderWithProviders(<Dashboard />);
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
+    });
   });
 
   test('muestra las métricas principales', async () => {
     renderWithProviders(<Dashboard />);
     
     await waitFor(() => {
-      expect(screen.getByText('Citas de Hoy')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /citas de hoy/i })).toBeInTheDocument();
       expect(screen.getByText('Ingresos del Mes')).toBeInTheDocument();
       expect(screen.getByText('Pacientes')).toBeInTheDocument();
       expect(screen.getByText('Stock Bajo')).toBeInTheDocument();

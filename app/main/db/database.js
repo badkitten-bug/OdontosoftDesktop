@@ -9,16 +9,32 @@ let db = null;
  */
 function getDatabasePath() {
   let dbPath;
+
+  // Definir entorno (por defecto producción). Se puede forzar con ODONTOSOFT_ENV.
+  const env = (process.env.ODONTOSOFT_ENV || process.env.NODE_ENV || 'production').toLowerCase();
+  const isDev = env === 'development' || env === 'dev';
+  const folderNameBase = 'OdontoSoftDesktop';
+  const folderName = isDev ? `${folderNameBase}-Dev` : folderNameBase;
+  const fileName = isDev ? 'clinica-dev.db' : 'clinica.db';
   
   if (process.platform === 'win32') {
-    // Windows: %APPDATA%/OdontoSoftDesktop/clinica.db
-    dbPath = path.join(process.env.APPDATA, 'OdontoSoftDesktop');
+    // Windows:
+    //  Producción: %APPDATA%/OdontoSoftDesktop/clinica.db  (mantiene compatibilidad)
+    //  Desarrollo: %APPDATA%/OdontoSoftDesktop-Dev/clinica-dev.db
+    const baseDir = process.env.APPDATA || process.env.LOCALAPPDATA || process.cwd();
+    dbPath = path.join(baseDir, folderName);
   } else if (process.platform === 'darwin') {
-    // macOS: ~/Library/Application Support/OdontoSoftDesktop/clinica.db
-    dbPath = path.join(process.env.HOME, 'Library', 'Application Support', 'OdontoSoftDesktop');
+    // macOS:
+    //  Producción: ~/Library/Application Support/OdontoSoftDesktop/clinica.db
+    //  Desarrollo: ~/Library/Application Support/OdontoSoftDesktop-Dev/clinica-dev.db
+    const home = process.env.HOME || process.cwd();
+    dbPath = path.join(home, 'Library', 'Application Support', folderName);
   } else {
-    // Linux: ~/.config/OdontoSoftDesktop/clinica.db
-    dbPath = path.join(process.env.HOME, '.config', 'OdontoSoftDesktop');
+    // Linux:
+    //  Producción: ~/.config/OdontoSoftDesktop/clinica.db
+    //  Desarrollo: ~/.config/OdontoSoftDesktop-Dev/clinica-dev.db
+    const home = process.env.HOME || process.cwd();
+    dbPath = path.join(home, '.config', folderName);
   }
 
   // Crear directorio si no existe
@@ -26,7 +42,7 @@ function getDatabasePath() {
     fs.mkdirSync(dbPath, { recursive: true });
   }
 
-  return path.join(dbPath, 'clinica.db');
+  return path.join(dbPath, fileName);
 }
 
 /**
@@ -509,9 +525,6 @@ function createTables() {
 
   // Insertar relaciones predefinidas
   insertRelacionesPredefinidas(db);
-  
-  // Insertar usuarios predefinidos
-  insertUsuariosPredefinidos(db);
 }
 
 /**
@@ -588,50 +601,6 @@ function insertRelacionesPredefinidas(db) {
     } catch (error) {
       // Ignorar errores de duplicados
       console.log(`Relación ya existe: ${relacion.entidad_origen} → ${relacion.entidad_destino}`);
-    }
-  });
-}
-
-/**
- * Inserta usuarios predefinidos
- */
-function insertUsuariosPredefinidos(db) {
-  const crypto = require('crypto');
-  
-  function hashPassword(password) {
-    return crypto.createHash('sha256').update(password).digest('hex');
-  }
-
-  const usuariosPredefinidos = [
-    {
-      username: 'admin',
-      password_hash: hashPassword('admin'),
-      nombre: 'Administrador',
-      email: 'admin@odontosoft.com',
-      rol: 'admin',
-      activo: 1,
-    },
-  ];
-
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO usuarios 
-    (username, password_hash, nombre, email, rol, activo)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
-  usuariosPredefinidos.forEach((usuario) => {
-    try {
-      stmt.run(
-        usuario.username,
-        usuario.password_hash,
-        usuario.nombre,
-        usuario.email,
-        usuario.rol,
-        usuario.activo
-      );
-    } catch (error) {
-      // Ignorar errores de duplicados
-      console.log(`Usuario ya existe: ${usuario.username}`);
     }
   });
 }

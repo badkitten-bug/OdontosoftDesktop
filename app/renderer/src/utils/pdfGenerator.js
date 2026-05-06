@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 /**
  * Genera un PDF de factura
@@ -48,7 +48,7 @@ export function generarPDFFactura(factura, paciente, pagos = []) {
     tableData.push(['Impuesto', '1', `S/ ${factura.impuesto.toFixed(2)}`, '-', `S/ ${factura.impuesto.toFixed(2)}`]);
   }
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [tableData[0]],
     body: tableData.slice(1),
@@ -77,7 +77,7 @@ export function generarPDFFactura(factura, paciente, pagos = []) {
       pago.referencia || '-',
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['Fecha', 'Método', 'Monto', 'Referencia']],
       body: pagosData,
@@ -183,7 +183,7 @@ export function generarPDFPrescripcion(prescripcion, paciente, odontologo) {
       med.duracion || '-',
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['#', 'Medicamento', 'Dosis', 'Frecuencia', 'Duración']],
       body: medicamentosData,

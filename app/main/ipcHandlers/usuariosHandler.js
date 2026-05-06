@@ -1,174 +1,310 @@
 const { getDatabase } = require('../db/database');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const {
+  crearSesion,
+  destruirSesion,
+  obtenerSesion,
+  requireSesion,
+  requireRol,
+} = require('../auth/sesiones');
 
-/**
- * Hash de contraseña simple (en producción usar bcrypt)
- */
-function hashPassword(password) {
+const BCRYPT_ROUNDS = 12;
+
+async function hashPassword(password) {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+function isBcryptHash(stored) {
+  return typeof stored === 'string' && /^\$2[aby]\$/.test(stored);
+}
+
+function isLegacySha256(stored) {
+  return typeof stored === 'string' && /^[a-f0-9]{64}$/i.test(stored);
+}
+
+function legacySha256(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-/**
- * Registra los handlers IPC para usuarios
- */
+async function verifyPassword(stored, plain) {
+  if (isBcryptHash(stored)) {
+    return { ok: await bcrypt.compare(plain, stored), legacy: false };
+  }
+  if (isLegacySha256(stored)) {
+    const ok = legacySha256(plain) === stored;
+    return { ok, legacy: ok };
+  }
+  return { ok: false, legacy: false };
+}
+
+function passwordEsValido(password) {
+  return typeof password === 'string' && password.length >= 8;
+}
+
 function register(ipcMain) {
-  // Obtener todos los usuarios
-  ipcMain.handle('get-usuarios', async () => {
+  // ¿Existen usuarios? (para detectar primer arranque)
+  ipcMain.handle('existen-usuarios', async () => {
     try {
       const db = getDatabase();
-      return db
-        .prepare(
-          `SELECT u.*, o.nombre as odontologo_nombre 
-           FROM usuarios u
-           LEFT JOIN odontologos o ON u.id_odontologo = o.id
-           ORDER BY u.nombre ASC`
-        )
-        .all();
+      const row = db.prepare('SELECT COUNT(*) as count FROM usuarios').get();
+      return { existen: row.count > 0, total: row.count };
     } catch (error) {
-      console.error('Error al obtener usuarios:', error);
+      console.error('Error al verificar usuarios:', error);
       throw error;
     }
   });
 
-  // Obtener un usuario
-  ipcMain.handle('get-usuario', async (event, id) => {
+  // Crear el primer admin (solo permitido si NO hay usuarios)
+  ipcMain.handle('crear-primer-admin', async (event, data) => {
     try {
       const db = getDatabase();
-      const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
-      if (usuario) {
-        delete usuario.password_hash; // No devolver el hash
+      const row = db.prepare('SELECT COUNT(*) as count FROM usuarios').get();
+      if (row.count > 0) {
+        throw new Error('Ya existe al menos un usuario; este endpoint sólo aplica para el primer arranque');
       }
-      return usuario;
+
+      const { username, password, nombre, email } = data || {};
+      if (!username || !nombre) {
+        throw new Error('username y nombre son obligatorios');
+      }
+      if (!passwordEsValido(password)) {
+        throw new Error('La contraseña debe tener al menos 8 caracteres');
+      }
+
+      const passwordHash = await hashPassword(password);
+      const result = db
+        .prepare(
+          'INSERT INTO usuarios (username, password_hash, nombre, email, rol, activo) VALUES (?, ?, ?, ?, ?, 1)'
+        )
+        .run(username.trim(), passwordHash, nombre.trim(), email || null, 'admin');
+
+      return { success: true, id: result.lastInsertRowid };
     } catch (error) {
-      console.error('Error al obtener usuario:', error);
+      console.error('Error al crear primer admin:', error);
       throw error;
     }
   });
 
-  // Autenticar usuario
+  // Login → devuelve sessionId
   ipcMain.handle('login', async (event, username, password) => {
     try {
       const db = getDatabase();
-      const passwordHash = hashPassword(password);
       const usuario = db
-        .prepare('SELECT * FROM usuarios WHERE username = ? AND password_hash = ? AND activo = 1')
-        .get(username, passwordHash);
+        .prepare('SELECT * FROM usuarios WHERE username = ? AND activo = 1')
+        .get(username);
 
-      if (usuario) {
-        // Actualizar último login
-        db.prepare('UPDATE usuarios SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(usuario.id);
-        delete usuario.password_hash; // No devolver el hash
-        return { success: true, usuario };
+      if (!usuario) {
+        return { success: false, error: 'Usuario o contraseña incorrectos' };
       }
 
-      return { success: false, error: 'Usuario o contraseña incorrectos' };
+      const { ok, legacy } = await verifyPassword(usuario.password_hash, password);
+      if (!ok) {
+        return { success: false, error: 'Usuario o contraseña incorrectos' };
+      }
+
+      // Migrar hash legacy SHA-256 → bcrypt al primer login válido
+      if (legacy) {
+        try {
+          const nuevoHash = await hashPassword(password);
+          db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?')
+            .run(nuevoHash, usuario.id);
+          console.log(`[auth] Hash migrado a bcrypt para usuario id=${usuario.id}`);
+        } catch (e) {
+          console.error('[auth] Error migrando hash a bcrypt:', e);
+        }
+      }
+
+      db.prepare('UPDATE usuarios SET last_login = CURRENT_TIMESTAMP WHERE id = ?').run(usuario.id);
+
+      const sessionId = crearSesion(usuario.id, usuario.rol, usuario.nombre);
+
+      delete usuario.password_hash;
+      return { success: true, usuario, sessionId };
     } catch (error) {
       console.error('Error al autenticar:', error);
       throw error;
     }
   });
 
-  // Crear usuario
-  ipcMain.handle('add-usuario', async (event, data) => {
+  // Logout
+  ipcMain.handle('logout', async (event, sessionId) => {
+    destruirSesion(sessionId);
+    return { success: true };
+  });
+
+  // Whoami: valida sessionId al cargar la app
+  ipcMain.handle('whoami', async (event, sessionId) => {
+    const sesion = obtenerSesion(sessionId);
+    if (!sesion) return { autenticado: false };
     try {
       const db = getDatabase();
-      const { username, password, nombre, email, rol, id_odontologo } = data;
-
-      // Verificar que el username no exista
-      const existe = db.prepare('SELECT id FROM usuarios WHERE username = ?').get(username);
-      if (existe) {
-        throw new Error('El nombre de usuario ya existe');
+      const usuario = db
+        .prepare('SELECT id, username, nombre, email, rol, activo, id_odontologo FROM usuarios WHERE id = ?')
+        .get(sesion.userId);
+      if (!usuario || !usuario.activo) {
+        destruirSesion(sessionId);
+        return { autenticado: false };
       }
-
-      const passwordHash = hashPassword(password);
-
-      const result = db
-        .prepare(
-          'INSERT INTO usuarios (username, password_hash, nombre, email, rol, id_odontologo) VALUES (?, ?, ?, ?, ?, ?)'
-        )
-        .run(username, passwordHash, nombre, email || null, rol, id_odontologo || null);
-
-      return {
-        id: result.lastInsertRowid,
-        success: true,
-      };
+      return { autenticado: true, usuario };
     } catch (error) {
-      console.error('Error al crear usuario:', error);
-      throw error;
+      console.error('Error en whoami:', error);
+      return { autenticado: false };
     }
   });
 
-  // Actualizar usuario
-  ipcMain.handle('update-usuario', async (event, id, data) => {
-    try {
-      const db = getDatabase();
-      const { nombre, email, rol, id_odontologo, activo, password } = data;
+  // Listar usuarios (admin)
+  ipcMain.handle('get-usuarios', async (event, sessionId) => {
+    requireRol(sessionId, 'admin');
+    const db = getDatabase();
+    return db
+      .prepare(
+        `SELECT u.id, u.username, u.nombre, u.email, u.rol, u.activo, u.id_odontologo,
+                u.created_at, u.updated_at, u.last_login,
+                o.nombre as odontologo_nombre
+         FROM usuarios u
+         LEFT JOIN odontologos o ON u.id_odontologo = o.id
+         ORDER BY u.nombre ASC`
+      )
+      .all();
+  });
 
-      let query = 'UPDATE usuarios SET nombre = ?, email = ?, rol = ?, id_odontologo = ?, activo = ?';
-      const params = [nombre, email || null, rol, id_odontologo || null, activo !== undefined ? (activo ? 1 : 0) : 1];
+  // Obtener un usuario (admin o el propio usuario)
+  ipcMain.handle('get-usuario', async (event, sessionId, id) => {
+    const sesion = requireSesion(sessionId);
+    if (sesion.rol !== 'admin' && sesion.userId !== id) {
+      const err = new Error('Sin permiso para ver este usuario');
+      err.code = 'NO_PERMISSION';
+      throw err;
+    }
+    const db = getDatabase();
+    const usuario = db
+      .prepare('SELECT id, username, nombre, email, rol, activo, id_odontologo, created_at, updated_at, last_login FROM usuarios WHERE id = ?')
+      .get(id);
+    return usuario || null;
+  });
 
-      if (password) {
-        query += ', password_hash = ?';
-        params.push(hashPassword(password));
+  // Crear usuario (admin)
+  ipcMain.handle('add-usuario', async (event, sessionId, data) => {
+    requireRol(sessionId, 'admin');
+    const db = getDatabase();
+    const { username, password, nombre, email, rol, id_odontologo } = data || {};
+
+    if (!username || !nombre || !rol) {
+      throw new Error('username, nombre y rol son obligatorios');
+    }
+    if (!passwordEsValido(password)) {
+      throw new Error('La contraseña debe tener al menos 8 caracteres');
+    }
+    const rolesValidos = ['admin', 'recepcionista', 'odontologo'];
+    if (!rolesValidos.includes(rol)) {
+      throw new Error('Rol inválido');
+    }
+
+    const existe = db.prepare('SELECT id FROM usuarios WHERE username = ?').get(username);
+    if (existe) {
+      throw new Error('El nombre de usuario ya existe');
+    }
+
+    const passwordHash = await hashPassword(password);
+    const result = db
+      .prepare(
+        'INSERT INTO usuarios (username, password_hash, nombre, email, rol, id_odontologo) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(username.trim(), passwordHash, nombre.trim(), email || null, rol, id_odontologo || null);
+
+    return { id: result.lastInsertRowid, success: true };
+  });
+
+  // Actualizar usuario:
+  //  - admin puede actualizar cualquier usuario y cualquier campo
+  //  - usuario no-admin solo puede actualizarse a sí mismo y solo nombre, email y password
+  ipcMain.handle('update-usuario', async (event, sessionId, id, data) => {
+    const sesion = requireSesion(sessionId);
+    const esAdmin = sesion.rol === 'admin';
+    const esSelf = sesion.userId === id;
+
+    if (!esAdmin && !esSelf) {
+      const err = new Error('Sin permiso para actualizar este usuario');
+      err.code = 'NO_PERMISSION';
+      throw err;
+    }
+
+    const db = getDatabase();
+    const { nombre, email, rol, id_odontologo, activo, password } = data || {};
+
+    if (password !== undefined && password !== null && password !== '' && !passwordEsValido(password)) {
+      throw new Error('La contraseña debe tener al menos 8 caracteres');
+    }
+
+    let query, params;
+    if (esAdmin) {
+      const rolesValidos = ['admin', 'recepcionista', 'odontologo'];
+      if (rol && !rolesValidos.includes(rol)) {
+        throw new Error('Rol inválido');
       }
-
-      query += ', updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-      params.push(id);
-
-      const result = db.prepare(query).run(...params);
-
-      return {
-        success: result.changes > 0,
-        changes: result.changes,
-      };
-    } catch (error) {
-      console.error('Error al actualizar usuario:', error);
-      throw error;
+      query = 'UPDATE usuarios SET nombre = ?, email = ?, rol = ?, id_odontologo = ?, activo = ?';
+      params = [
+        nombre,
+        email || null,
+        rol,
+        id_odontologo || null,
+        activo !== undefined ? (activo ? 1 : 0) : 1,
+      ];
+    } else {
+      // Self-update: solo nombre, email y password
+      query = 'UPDATE usuarios SET nombre = COALESCE(?, nombre), email = COALESCE(?, email)';
+      params = [nombre || null, email || null];
     }
+
+    if (password) {
+      query += ', password_hash = ?';
+      params.push(await hashPassword(password));
+    }
+
+    query += ', updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+    params.push(id);
+
+    const result = db.prepare(query).run(...params);
+    return { success: result.changes > 0, changes: result.changes };
   });
 
-  // Eliminar usuario
-  ipcMain.handle('delete-usuario', async (event, id) => {
-    try {
-      const db = getDatabase();
-      const result = db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
-
-      return {
-        success: result.changes > 0,
-        changes: result.changes,
-      };
-    } catch (error) {
-      console.error('Error al eliminar usuario:', error);
-      throw error;
+  // Eliminar usuario (admin, no puede eliminarse a sí mismo)
+  ipcMain.handle('delete-usuario', async (event, sessionId, id) => {
+    const sesion = requireRol(sessionId, 'admin');
+    if (sesion.userId === id) {
+      throw new Error('No puedes eliminar tu propio usuario');
     }
+    const db = getDatabase();
+    // Evitar dejar la app sin ningún admin activo
+    const usuario = db.prepare('SELECT rol FROM usuarios WHERE id = ?').get(id);
+    if (usuario && usuario.rol === 'admin') {
+      const otrosAdmins = db
+        .prepare('SELECT COUNT(*) as count FROM usuarios WHERE rol = ? AND activo = 1 AND id != ?')
+        .get('admin', id);
+      if (otrosAdmins.count === 0) {
+        throw new Error('No puedes eliminar al último administrador activo');
+      }
+    }
+    const result = db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
+    return { success: result.changes > 0, changes: result.changes };
   });
 
-  // Obtener permisos de un rol
-  ipcMain.handle('get-permisos-rol', async (event, rol) => {
-    try {
-      const db = getDatabase();
-      return db.prepare('SELECT * FROM permisos WHERE rol = ? AND activo = 1').all(rol);
-    } catch (error) {
-      console.error('Error al obtener permisos:', error);
-      throw error;
-    }
+  // Permisos
+  ipcMain.handle('get-permisos-rol', async (event, sessionId, rol) => {
+    requireSesion(sessionId);
+    const db = getDatabase();
+    return db.prepare('SELECT * FROM permisos WHERE rol = ? AND activo = 1').all(rol);
   });
 
-  // Verificar permiso
-  ipcMain.handle('verificar-permiso', async (event, rol, modulo, permiso) => {
-    try {
-      const db = getDatabase();
-      const resultado = db
-        .prepare('SELECT 1 FROM permisos WHERE rol = ? AND modulo = ? AND permiso = ? AND activo = 1')
-        .get(rol, modulo, permiso);
-
-      return { tienePermiso: !!resultado };
-    } catch (error) {
-      console.error('Error al verificar permiso:', error);
-      throw error;
-    }
+  ipcMain.handle('verificar-permiso', async (event, sessionId, rol, modulo, permiso) => {
+    requireSesion(sessionId);
+    const db = getDatabase();
+    const resultado = db
+      .prepare('SELECT 1 FROM permisos WHERE rol = ? AND modulo = ? AND permiso = ? AND activo = 1')
+      .get(rol, modulo, permiso);
+    return { tienePermiso: !!resultado };
   });
 }
 
 module.exports = { register };
-

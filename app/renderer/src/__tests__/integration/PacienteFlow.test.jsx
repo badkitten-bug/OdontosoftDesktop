@@ -19,7 +19,7 @@ jest.mock('../../services/dbService', () => ({
 
 const renderWithProviders = (ui) => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <UserProvider>
         {ui}
       </UserProvider>
@@ -46,7 +46,7 @@ describe('Flujo Completo: Crear Paciente', () => {
     fireEvent.click(newButton);
     
     await waitFor(() => {
-      expect(screen.getByText(/nuevo paciente/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /nuevo paciente/i })).toBeInTheDocument();
     });
     
     // 3. Llenar formulario

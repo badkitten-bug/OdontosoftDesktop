@@ -22,7 +22,7 @@ const mockPacientes = [
 
 const renderWithProviders = (ui) => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <UserProvider>
         {ui}
       </UserProvider>
@@ -73,7 +73,7 @@ describe('Pacientes Component', () => {
     fireEvent.click(newButton);
     
     await waitFor(() => {
-      expect(screen.getByText(/nuevo paciente/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /nuevo paciente/i })).toBeInTheDocument();
     });
   });
 

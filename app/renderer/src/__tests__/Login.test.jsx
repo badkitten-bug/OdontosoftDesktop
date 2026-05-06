@@ -13,7 +13,7 @@ import { login } from '../services/dbService';
 
 const renderWithProviders = (ui) => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <UserProvider>
         {ui}
       </UserProvider>

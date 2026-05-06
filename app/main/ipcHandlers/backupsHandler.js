@@ -2,6 +2,28 @@ const { getDatabase, getDatabasePath } = require('../db/database');
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+const { requireRol } = require('../auth/sesiones');
+
+const TABLAS_EXPORTABLES = new Set([
+  'pacientes',
+  'odontologos',
+  'horarios_disponibilidad',
+  'citas',
+  'tratamientos',
+  'citas_tratamientos',
+  'facturas',
+  'pagos',
+  'productos',
+  'historial',
+  'movimientos_inventario',
+  'planes_tratamiento',
+  'citas_plan',
+  'prescripciones',
+  'archivos_historial',
+  'promociones',
+  'cupones',
+  'recordatorios',
+]);
 
 /**
  * Obtiene la carpeta de backups
@@ -22,8 +44,9 @@ function getBackupsDir() {
  */
 function register(ipcMain) {
   // Crear backup
-  ipcMain.handle('crear-backup', async (event, nombre, descripcion) => {
+  ipcMain.handle('crear-backup', async (event, sessionId, nombre, descripcion) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const dbPath = getDatabasePath();
       const backupsDir = getBackupsDir();
@@ -60,8 +83,9 @@ function register(ipcMain) {
   });
 
   // Obtener lista de backups
-  ipcMain.handle('get-backups', async () => {
+  ipcMain.handle('get-backups', async (event, sessionId) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       return db.prepare('SELECT * FROM backups ORDER BY created_at DESC').all();
     } catch (error) {
@@ -71,8 +95,9 @@ function register(ipcMain) {
   });
 
   // Restaurar backup
-  ipcMain.handle('restaurar-backup', async (event, id) => {
+  ipcMain.handle('restaurar-backup', async (event, sessionId, id) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const backup = db.prepare('SELECT * FROM backups WHERE id = ?').get(id);
 
@@ -108,8 +133,9 @@ function register(ipcMain) {
   });
 
   // Eliminar backup
-  ipcMain.handle('delete-backup', async (event, id) => {
+  ipcMain.handle('delete-backup', async (event, sessionId, id) => {
     try {
+      requireRol(sessionId, 'admin');
       const db = getDatabase();
       const backup = db.prepare('SELECT ruta_archivo FROM backups WHERE id = ?').get(id);
 
@@ -130,8 +156,12 @@ function register(ipcMain) {
   });
 
   // Exportar datos a CSV
-  ipcMain.handle('exportar-csv', async (event, tabla, rutaDestino) => {
+  ipcMain.handle('exportar-csv', async (event, sessionId, tabla, rutaDestino) => {
     try {
+      requireRol(sessionId, 'admin');
+      if (!TABLAS_EXPORTABLES.has(tabla)) {
+        throw new Error('Tabla no permitida para exportación');
+      }
       const db = getDatabase();
       const datos = db.prepare(`SELECT * FROM ${tabla}`).all();
 

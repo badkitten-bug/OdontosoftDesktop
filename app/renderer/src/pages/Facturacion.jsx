@@ -136,6 +136,13 @@ function Facturacion() {
       setFacturaSeleccionada(factura);
       const data = await getPagosFactura(factura.id);
       setPagos(data);
+      
+      // Dejar el monto en 0 para que el usuario decida el próximo importe
+      setFormDataPago((prev) => ({
+        ...prev,
+        monto: '0.00',
+      }));
+
       setShowModalPago(true);
     } catch (error) {
       console.error('Error al cargar pagos:', error);
@@ -175,15 +182,20 @@ function Facturacion() {
         });
         alert('Pago agregado exitosamente');
       }
+      // Refrescar facturas y pagos de la factura seleccionada
       await loadFacturas();
-      await handleVerPagos(facturaSeleccionada);
+      const data = await getPagosFactura(facturaSeleccionada.id);
+      setPagos(data);
+
+      // Dejar el monto en 0.00 para que el usuario escriba el siguiente pago libremente
       setFormDataPago({
-        monto: '',
+        monto: '0.00',
         metodo_pago: 'efectivo',
         fecha: new Date().toISOString().split('T')[0],
         referencia: '',
         observaciones: '',
       });
+
       setPagoEditando(null);
     } catch (error) {
       console.error('Error al guardar pago:', error);
@@ -224,13 +236,15 @@ function Facturacion() {
 
   const handleCancelarEdicion = () => {
     setPagoEditando(null);
-    setFormDataPago({
-      monto: '',
-      metodo_pago: 'efectivo',
+
+    // Volver a dejar el monto neutro cuando se cancela la edición
+    setFormDataPago((prev) => ({
+      ...prev,
+      monto: '0.00',
       fecha: new Date().toISOString().split('T')[0],
       referencia: '',
       observaciones: '',
-    });
+    }));
   };
 
   const filteredFacturas = facturas.filter((factura) =>
@@ -426,8 +440,8 @@ function Facturacion() {
                     value={formDataFactura.subtotal}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Permitir vacío o número válido
-                      setFormDataFactura({ ...formDataFactura, subtotal: value === '' ? '' : (parseFloat(value) || '') });
+                      // Mantener el valor como string para que sea más fácil escribir montos grandes
+                      setFormDataFactura({ ...formDataFactura, subtotal: value });
                     }}
                     placeholder="0.00"
                     required
@@ -446,8 +460,7 @@ function Facturacion() {
                     value={formDataFactura.descuento}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Permitir vacío o número válido
-                      setFormDataFactura({ ...formDataFactura, descuento: value === '' ? '' : (parseFloat(value) || '') });
+                      setFormDataFactura({ ...formDataFactura, descuento: value });
                     }}
                     placeholder="0.00"
                     min="0"
@@ -465,8 +478,7 @@ function Facturacion() {
                     value={formDataFactura.impuesto}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Permitir vacío o número válido
-                      setFormDataFactura({ ...formDataFactura, impuesto: value === '' ? '' : (parseFloat(value) || '') });
+                      setFormDataFactura({ ...formDataFactura, impuesto: value });
                     }}
                     placeholder="0.00"
                     min="0"
@@ -677,12 +689,13 @@ function Facturacion() {
                     value={formDataPago.monto}
                     onChange={(e) => {
                       const value = e.target.value;
-                      // Permitir vacío o número válido
-                      setFormDataPago({ ...formDataPago, monto: value === '' ? '' : (parseFloat(value) || '') });
+                      // Guardar como string para que el usuario pueda escribir montos grandes sin saltos raros
+                      setFormDataPago({ ...formDataPago, monto: value });
                     }}
                     placeholder="0.00"
                     required
                     min="0"
+                    autoFocus
                   />
                 </div>
 

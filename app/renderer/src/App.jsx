@@ -23,7 +23,16 @@ import Configuracion from './pages/Configuracion';
 import Reportes from './pages/Reportes';
 
 function AppContent() {
-  const { currentUser } = useUser();
+  const { currentUser, hydrating } = useUser();
+
+  // Mientras se valida la sesión guardada, mostrar splash
+  if (hydrating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <span className="loading loading-spinner loading-lg text-primary" />
+      </div>
+    );
+  }
 
   // Si no hay usuario, mostrar solo login
   if (!currentUser) {
