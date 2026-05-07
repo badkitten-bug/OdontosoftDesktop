@@ -230,12 +230,30 @@ function createTables() {
       total REAL NOT NULL DEFAULT 0.0,
       estado TEXT DEFAULT 'pendiente', -- pendiente, pagada, cancelada
       observaciones TEXT,
+      tipo_comprobante TEXT NOT NULL DEFAULT 'boleta', -- 'boleta' | 'factura'
+      serie TEXT,        -- 'B001', 'F001', etc.
+      correlativo INTEGER, -- número correlativo dentro de la serie
+      cliente_dni TEXT,
+      cliente_ruc TEXT,
+      cliente_razon_social TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (id_cita) REFERENCES citas(id) ON DELETE SET NULL,
       FOREIGN KEY (id_paciente) REFERENCES pacientes(id) ON DELETE CASCADE
     )
   `);
+
+  // Migraciones para BDs creadas antes de Fase 3
+  for (const sql of [
+    "ALTER TABLE facturas ADD COLUMN tipo_comprobante TEXT NOT NULL DEFAULT 'boleta'",
+    "ALTER TABLE facturas ADD COLUMN serie TEXT",
+    "ALTER TABLE facturas ADD COLUMN correlativo INTEGER",
+    "ALTER TABLE facturas ADD COLUMN cliente_dni TEXT",
+    "ALTER TABLE facturas ADD COLUMN cliente_ruc TEXT",
+    "ALTER TABLE facturas ADD COLUMN cliente_razon_social TEXT",
+  ]) {
+    try { db.exec(sql); } catch (_) { /* columna ya existe */ }
+  }
 
   // Tabla de pagos
   db.exec(`
@@ -495,6 +513,53 @@ function createTables() {
     )
   `);
 
+  // Tabla de licencia (singleton id = 1).
+  // tipo: 'demo' por defecto; cambia a 'esencial' / 'pro' / 'cloud' al activar una clave válida.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS licencia (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      tipo TEXT NOT NULL DEFAULT 'demo',
+      clave TEXT,
+      email_cliente TEXT,
+      nombre_cliente TEXT,
+      fingerprint TEXT,
+      activada_en DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.prepare(
+    `INSERT OR IGNORE INTO licencia (id, tipo) VALUES (1, 'demo')`
+  ).run();
+
+  // Tabla de configuración de la clínica (singleton: siempre id = 1)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS configuracion_clinica (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      nombre_clinica TEXT NOT NULL DEFAULT 'Mi Clínica',
+      ruc TEXT,
+      direccion TEXT,
+      telefono TEXT,
+      email TEXT,
+      logo_path TEXT,
+      moneda_simbolo TEXT NOT NULL DEFAULT 'S/',
+      moneda_codigo TEXT NOT NULL DEFAULT 'PEN',
+      igv_porcentaje REAL NOT NULL DEFAULT 18.0,
+      formato_fecha TEXT NOT NULL DEFAULT 'DD/MM/YYYY',
+      setup_completado INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Garantizar que exista la fila singleton
+  db.prepare(
+    `INSERT OR IGNORE INTO configuracion_clinica
+     (id, nombre_clinica, moneda_simbolo, moneda_codigo, igv_porcentaje, formato_fecha, setup_completado)
+     VALUES (1, 'Mi Clínica', 'S/', 'PEN', 18.0, 'DD/MM/YYYY', 0)`
+  ).run();
+
   // Crear índices para mejorar el rendimiento
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_pacientes_dni ON pacientes(dni);
@@ -615,9 +680,35 @@ function getDatabase() {
   return db;
 }
 
+/**
+ * Cierra la conexión con la BD si está abierta. Idempotente.
+ * Útil antes de copiar/reemplazar el archivo de la BD (restore, etc).
+ */
+function closeDatabase() {
+  if (db) {
+    try {
+      db.close();
+    } catch (e) {
+      console.error('Error cerrando BD:', e);
+    } finally {
+      db = null;
+    }
+  }
+}
+
+/**
+ * Cierra y vuelve a abrir la BD. Útil tras restaurar un backup.
+ */
+function reopenDatabase() {
+  closeDatabase();
+  return initDatabase();
+}
+
 module.exports = {
   initDatabase,
   getDatabase,
+  closeDatabase,
+  reopenDatabase,
   getDatabasePath,
 };
 

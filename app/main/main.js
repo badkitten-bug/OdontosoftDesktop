@@ -1,6 +1,16 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { initDatabase, getDatabase } = require('./db/database');
+const log = require('electron-log/main');
+const { initDatabase, getDatabase, closeDatabase } = require('./db/database');
+
+// Configurar electron-log
+//  - Archivo: <userData>/logs/main.log con rotación a 5 MB.
+//  - Reemplaza console.* en el main process para que también escriba al archivo.
+log.transports.file.level = 'info';
+log.transports.file.maxSize = 5 * 1024 * 1024;
+log.transports.console.level = 'debug';
+log.initialize();
+Object.assign(console, log.functions);
 const pacientesHandler = require('./ipcHandlers/pacientesHandler');
 const productosHandler = require('./ipcHandlers/productosHandler');
 const configHandler = require('./ipcHandlers/configHandler');
@@ -19,6 +29,10 @@ const archivosHandler = require('./ipcHandlers/archivosHandler');
 const usuariosHandler = require('./ipcHandlers/usuariosHandler');
 const promocionesHandler = require('./ipcHandlers/promocionesHandler');
 const backupsHandler = require('./ipcHandlers/backupsHandler');
+const configuracionClinicaHandler = require('./ipcHandlers/configuracionClinicaHandler');
+const licenciaHandler = require('./ipcHandlers/licenciaHandler');
+const diagnosticoHandler = require('./ipcHandlers/diagnosticoHandler');
+const autoUpdate = require('./auto-update');
 
 let mainWindow;
 
@@ -71,6 +85,9 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Activar verificación automática de actualizaciones (solo en builds empaquetados).
+  autoUpdate.inicializar(mainWindow);
 }
 
 // Función para registrar todos los handlers IPC
@@ -93,6 +110,10 @@ function registerAllHandlers() {
   usuariosHandler.register(ipcMain);
   promocionesHandler.register(ipcMain);
   backupsHandler.register(ipcMain);
+  configuracionClinicaHandler.register(ipcMain);
+  licenciaHandler.register(ipcMain);
+  diagnosticoHandler.register(ipcMain);
+  autoUpdate.register(ipcMain);
   console.log('Handlers IPC registrados correctamente');
 }
 
@@ -217,6 +238,33 @@ app.whenReady().then(async () => {
       createWindow();
     }
   });
+});
+
+// Antes de cerrar: backup automático del día + rotación + cerrar BD limpiamente.
+let cerrandoLimpio = false;
+app.on('before-quit', async (event) => {
+  if (cerrandoLimpio) return; // ya estamos en el flujo de cierre
+  event.preventDefault();
+  cerrandoLimpio = true;
+
+  try {
+    const res = await backupsHandler.ejecutarBackupAutomatico();
+    if (res.ok) {
+      console.log(`[backup] backup automático listo: ${res.ruta}`);
+    } else {
+      console.warn(`[backup] backup automático omitido: ${res.motivo}`);
+    }
+  } catch (e) {
+    console.error('[backup] error en backup automático:', e);
+  }
+
+  try {
+    closeDatabase();
+  } catch (e) {
+    console.error('[db] error cerrando BD al salir:', e);
+  }
+
+  app.exit(0);
 });
 
 app.on('window-all-closed', () => {

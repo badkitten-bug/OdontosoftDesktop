@@ -18,7 +18,23 @@ jest.mock('../db/database', () => {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  
+
+  // Tabla de licencia para que el handler de demo no falle
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS licencia (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      tipo TEXT NOT NULL DEFAULT 'demo',
+      clave TEXT,
+      email_cliente TEXT,
+      nombre_cliente TEXT,
+      fingerprint TEXT,
+      activada_en DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.prepare("INSERT OR IGNORE INTO licencia (id, tipo) VALUES (1, 'esencial')").run();
+
   return {
     getDatabase: jest.fn(() => db),
     initDatabase: jest.fn(() => db),

@@ -1,4 +1,10 @@
 const { getDatabase } = require('../db/database');
+const { validarDNI } = require('../validation/identidad');
+const {
+  obtenerEstadoLicencia,
+  contarPacientes,
+  LIMITE_PACIENTES_DEMO,
+} = require('./licenciaHandler');
 
 /**
  * Registra los handlers IPC para pacientes
@@ -49,12 +55,27 @@ function register(ipcMain) {
   // Agregar nuevo paciente
   ipcMain.handle('add-paciente', async (event, data) => {
     try {
+      // Bloqueo de la versión demo: máximo LIMITE_PACIENTES_DEMO pacientes.
+      const estadoLicencia = obtenerEstadoLicencia();
+      if (estadoLicencia.tipo === 'demo' && contarPacientes() >= LIMITE_PACIENTES_DEMO) {
+        const err = new Error(
+          `Has alcanzado el límite de ${LIMITE_PACIENTES_DEMO} pacientes de la versión demo. ` +
+            `Activa una licencia para registrar más.`
+        );
+        err.code = 'DEMO_LIMIT';
+        throw err;
+      }
+
       const db = getDatabase();
       const { nombre, dni, telefono, datos_extra = {} } = data;
 
-      // Validar DNI único si se proporciona
+      // Validar DNI: si se proporciona, debe tener formato correcto y ser único
       if (dni && dni.trim()) {
-        const pacienteExistente = db.prepare('SELECT id FROM pacientes WHERE dni = ?').get(dni.trim());
+        const dniLimpio = dni.trim();
+        const v = validarDNI(dniLimpio);
+        if (!v.ok) throw new Error(v.error);
+
+        const pacienteExistente = db.prepare('SELECT id FROM pacientes WHERE dni = ?').get(dniLimpio);
         if (pacienteExistente) {
           throw new Error('Ya existe un paciente con este DNI');
         }
@@ -82,9 +103,13 @@ function register(ipcMain) {
       const db = getDatabase();
       const { nombre, dni, telefono, datos_extra = {} } = data;
 
-      // Validar DNI único si se proporciona (excluyendo el paciente actual)
+      // Validar DNI: formato correcto y único (excluyendo al paciente actual)
       if (dni && dni.trim()) {
-        const pacienteExistente = db.prepare('SELECT id FROM pacientes WHERE dni = ? AND id != ?').get(dni.trim(), id);
+        const dniLimpio = dni.trim();
+        const v = validarDNI(dniLimpio);
+        if (!v.ok) throw new Error(v.error);
+
+        const pacienteExistente = db.prepare('SELECT id FROM pacientes WHERE dni = ? AND id != ?').get(dniLimpio, id);
         if (pacienteExistente) {
           throw new Error('Ya existe otro paciente con este DNI');
         }

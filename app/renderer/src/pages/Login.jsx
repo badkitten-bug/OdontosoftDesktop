@@ -73,6 +73,8 @@ function Login() {
     if (!adminData.nombre.trim()) return setError('El nombre es obligatorio');
     if (!adminData.username.trim()) return setError('El usuario es obligatorio');
     if (adminData.password.length < 8) return setError('La contraseña debe tener al menos 8 caracteres');
+    if (!/[A-Z]/.test(adminData.password)) return setError('La contraseña debe incluir al menos una letra mayúscula');
+    if (!/\d/.test(adminData.password)) return setError('La contraseña debe incluir al menos un número');
     if (adminData.password !== adminData.confirmPassword) return setError('Las contraseñas no coinciden');
 
     setLoading(true);
@@ -241,7 +243,7 @@ function Login() {
                 id={adminPasswordId}
                 type="password"
                 className="input input-bordered w-full"
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mín. 8 caracteres, 1 mayúscula y 1 número"
                 value={adminData.password}
                 onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
                 required

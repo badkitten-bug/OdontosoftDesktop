@@ -4,6 +4,22 @@ import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFactur
 import { getCitas, getPacientes, getPaciente } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
 import { exportarFacturas } from '../utils/excelExporter';
+import { formatMoneda, formatFecha, getIgvPorcentaje, getMonedaSimbolo } from '../utils/formatters';
+import { validarDNI, validarRUC } from '../utils/identidad';
+
+const ESTADO_FACTURA_INICIAL = {
+  id_paciente: '',
+  fecha: new Date().toISOString().split('T')[0],
+  tipo_comprobante: 'boleta',
+  cliente_dni: '',
+  cliente_ruc: '',
+  cliente_razon_social: '',
+  subtotal: '',
+  descuento: '',
+  impuesto: '',
+  calcular_igv_auto: true,
+  observaciones: '',
+};
 
 function Facturacion() {
   const [facturas, setFacturas] = useState([]);
@@ -16,14 +32,7 @@ function Facturacion() {
   const [facturaSeleccionada, setFacturaSeleccionada] = useState(null);
   const [pagos, setPagos] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [formDataFactura, setFormDataFactura] = useState({
-    id_paciente: '',
-    fecha: new Date().toISOString().split('T')[0],
-    subtotal: '',
-    descuento: '',
-    impuesto: '',
-    observaciones: '',
-  });
+  const [formDataFactura, setFormDataFactura] = useState(ESTADO_FACTURA_INICIAL);
   const [formDataPago, setFormDataPago] = useState({
     monto: '',
     metodo_pago: 'efectivo',
@@ -91,43 +100,54 @@ function Facturacion() {
 
   const handleCrearFacturaDirecta = async (e) => {
     e.preventDefault();
-    
+
     if (!formDataFactura.id_paciente) {
       alert('Por favor selecciona un paciente');
       return;
     }
 
-    try {
-      // Validar subtotal
-      if (!formDataFactura.subtotal || parseFloat(formDataFactura.subtotal) <= 0) {
-        alert('El subtotal debe ser mayor a 0');
+    if (!formDataFactura.subtotal || parseFloat(formDataFactura.subtotal) <= 0) {
+      alert('El subtotal debe ser mayor a 0');
+      return;
+    }
+
+    // Validaciones de cliente según tipo de comprobante
+    if (formDataFactura.tipo_comprobante === 'factura') {
+      const v = validarRUC(formDataFactura.cliente_ruc);
+      if (!v.ok) { alert(`RUC: ${v.error}`); return; }
+      if (!formDataFactura.cliente_razon_social.trim()) {
+        alert('La razón social es obligatoria para emitir una factura');
         return;
       }
+    }
+    if (formDataFactura.tipo_comprobante === 'boleta' && formDataFactura.cliente_dni) {
+      const v = validarDNI(formDataFactura.cliente_dni);
+      if (!v.ok) { alert(`DNI: ${v.error}`); return; }
+    }
 
-      // Asegurar que id_paciente sea un número y convertir valores numéricos
+    try {
       const facturaData = {
-        ...formDataFactura,
         id_paciente: parseInt(formDataFactura.id_paciente),
+        fecha: formDataFactura.fecha,
+        tipo_comprobante: formDataFactura.tipo_comprobante,
+        cliente_dni: formDataFactura.cliente_dni.trim() || null,
+        cliente_ruc: formDataFactura.cliente_ruc.trim() || null,
+        cliente_razon_social: formDataFactura.cliente_razon_social.trim() || null,
         subtotal: parseFloat(formDataFactura.subtotal) || 0,
         descuento: formDataFactura.descuento ? parseFloat(formDataFactura.descuento) : 0,
         impuesto: formDataFactura.impuesto ? parseFloat(formDataFactura.impuesto) : 0,
+        calcular_igv_auto: !!formDataFactura.calcular_igv_auto,
+        observaciones: formDataFactura.observaciones || null,
       };
-      
+
       await crearFacturaDirecta(facturaData);
       await loadFacturas();
       setShowModalFacturaDirecta(false);
-      setFormDataFactura({
-        id_paciente: '',
-        fecha: new Date().toISOString().split('T')[0],
-        subtotal: '',
-        descuento: '',
-        impuesto: '',
-        observaciones: '',
-      });
-      alert('Factura creada exitosamente');
+      setFormDataFactura(ESTADO_FACTURA_INICIAL);
+      alert('Comprobante creado correctamente');
     } catch (error) {
       console.error('Error al crear factura:', error);
-      alert(`Error al crear factura: ${error.message || error}`);
+      alert(`Error al crear comprobante: ${error.message || error}`);
     }
   };
 
@@ -219,7 +239,7 @@ function Facturacion() {
   };
 
   const handleEliminarPago = async (pago) => {
-    if (!confirm(`¿Estás seguro de eliminar el pago de S/ ${pago.monto.toFixed(2)}?`)) {
+    if (!confirm(`¿Estás seguro de eliminar el pago de ${formatMoneda(pago.monto)}?`)) {
       return;
     }
 
@@ -339,8 +359,9 @@ function Facturacion() {
             <table className="table w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th>Tipo</th>
                   <th>Número</th>
-                  <th>Paciente</th>
+                  <th>Cliente</th>
                   <th>Fecha</th>
                   <th>Subtotal</th>
                   <th>Descuento</th>
@@ -351,15 +372,28 @@ function Facturacion() {
               </thead>
               <tbody>
                 {filteredFacturas.map((factura) => {
-                  const totalPagado = calcularTotalPagado(factura.id);
+                  const tipo = factura.tipo_comprobante || 'boleta';
                   return (
                     <tr key={factura.id} className="hover:bg-gray-50">
+                      <td>
+                        <span className={`badge ${tipo === 'factura' ? 'badge-primary' : 'badge-ghost'}`}>
+                          {tipo === 'factura' ? 'Factura' : 'Boleta'}
+                        </span>
+                      </td>
                       <td className="font-medium">{factura.numero}</td>
-                      <td>{factura.paciente_nombre}</td>
-                      <td>{new Date(factura.fecha).toLocaleDateString('es-ES')}</td>
-                      <td>S/ {factura.subtotal.toFixed(2)}</td>
-                      <td>S/ {factura.descuento.toFixed(2)}</td>
-                      <td className="font-semibold">S/ {factura.total.toFixed(2)}</td>
+                      <td>
+                        {factura.cliente_razon_social || factura.paciente_nombre}
+                        {factura.cliente_ruc && (
+                          <span className="text-xs text-gray-500 block">RUC: {factura.cliente_ruc}</span>
+                        )}
+                        {!factura.cliente_ruc && factura.cliente_dni && (
+                          <span className="text-xs text-gray-500 block">DNI: {factura.cliente_dni}</span>
+                        )}
+                      </td>
+                      <td>{formatFecha(factura.fecha)}</td>
+                      <td>{formatMoneda(factura.subtotal)}</td>
+                      <td>{formatMoneda(factura.descuento)}</td>
+                      <td className="font-semibold">{formatMoneda(factura.total)}</td>
                       <td>{getEstadoBadge(factura.estado)}</td>
                       <td>
                         <div className="flex gap-2">
@@ -389,156 +423,230 @@ function Facturacion() {
         )}
       </div>
 
-      {/* Modal crear factura directamente */}
-      {showModalFacturaDirecta && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-2xl">
-            <h3 className="font-bold text-lg mb-4">Nueva Factura</h3>
-            
-            <form onSubmit={handleCrearFacturaDirecta} className="space-y-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Paciente *</span>
-                </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={formDataFactura.id_paciente}
-                  onChange={(e) => setFormDataFactura({ ...formDataFactura, id_paciente: e.target.value })}
-                  required
-                >
-                  <option value="">-- Selecciona un paciente --</option>
-                  {pacientes.map((paciente) => (
-                    <option key={paciente.id} value={paciente.id}>
-                      {paciente.nombre} {paciente.dni ? `(DNI: ${paciente.dni})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      {/* Modal crear comprobante (boleta o factura) */}
+      {showModalFacturaDirecta && (() => {
+        const simbolo = getMonedaSimbolo();
+        const subtotalNum = parseFloat(formDataFactura.subtotal) || 0;
+        const descuentoNum = parseFloat(formDataFactura.descuento) || 0;
+        const baseImponible = Math.max(0, subtotalNum - descuentoNum);
+        const igvPct = getIgvPorcentaje();
+        const impuestoCalc = formDataFactura.calcular_igv_auto
+          ? +(baseImponible * (igvPct / 100)).toFixed(2)
+          : (parseFloat(formDataFactura.impuesto) || 0);
+        const totalCalc = +(baseImponible + impuestoCalc).toFixed(2);
+        const esFactura = formDataFactura.tipo_comprobante === 'factura';
 
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Fecha *</span>
-                </label>
-                <input
-                  type="date"
-                  className="input input-bordered w-full"
-                  value={formDataFactura.fecha}
-                  onChange={(e) => setFormDataFactura({ ...formDataFactura, fecha: e.target.value })}
-                  required
-                />
-              </div>
+        return (
+          <div className="modal modal-open">
+            <div className="modal-box max-w-2xl">
+              <h3 className="font-bold text-lg mb-4">Nuevo comprobante</h3>
 
-              <div className="grid grid-cols-3 gap-4">
+              <form onSubmit={handleCrearFacturaDirecta} className="space-y-4">
+                {/* Tipo de comprobante */}
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text font-medium">Subtotal (S/) *</span>
+                    <span className="label-text font-medium">Tipo de comprobante *</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input input-bordered w-full"
-                    value={formDataFactura.subtotal}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Mantener el valor como string para que sea más fácil escribir montos grandes
-                      setFormDataFactura({ ...formDataFactura, subtotal: value });
-                    }}
-                    placeholder="0.00"
+                  <div className="join w-full">
+                    <button
+                      type="button"
+                      className={`btn join-item flex-1 ${!esFactura ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setFormDataFactura({ ...formDataFactura, tipo_comprobante: 'boleta' })}
+                    >
+                      Boleta (B001)
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn join-item flex-1 ${esFactura ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => setFormDataFactura({ ...formDataFactura, tipo_comprobante: 'factura' })}
+                    >
+                      Factura (F001)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Paciente *</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={formDataFactura.id_paciente}
+                    onChange={(e) => setFormDataFactura({ ...formDataFactura, id_paciente: e.target.value })}
                     required
-                    min="0"
+                  >
+                    <option value="">-- Selecciona un paciente --</option>
+                    {pacientes.map((paciente) => (
+                      <option key={paciente.id} value={paciente.id}>
+                        {paciente.nombre} {paciente.dni ? `(DNI: ${paciente.dni})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Datos del cliente según tipo */}
+                {esFactura ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text font-medium">RUC del cliente *</span>
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={11}
+                        className="input input-bordered w-full"
+                        placeholder="11 dígitos"
+                        value={formDataFactura.cliente_ruc}
+                        onChange={(e) => setFormDataFactura({ ...formDataFactura, cliente_ruc: e.target.value.replace(/\D/g, '') })}
+                        required
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text font-medium">Razón social *</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input input-bordered w-full"
+                        placeholder="Nombre o razón social del cliente"
+                        value={formDataFactura.cliente_razon_social}
+                        onChange={(e) => setFormDataFactura({ ...formDataFactura, cliente_razon_social: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">DNI del cliente (opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={8}
+                      className="input input-bordered w-full md:w-1/2"
+                      placeholder="8 dígitos"
+                      value={formDataFactura.cliente_dni}
+                      onChange={(e) => setFormDataFactura({ ...formDataFactura, cliente_dni: e.target.value.replace(/\D/g, '') })}
+                    />
+                  </div>
+                )}
+
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Fecha *</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="input input-bordered w-full"
+                    value={formDataFactura.fecha}
+                    onChange={(e) => setFormDataFactura({ ...formDataFactura, fecha: e.target.value })}
+                    required
                   />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Subtotal ({simbolo}) *</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="input input-bordered w-full"
+                      value={formDataFactura.subtotal}
+                      onChange={(e) => setFormDataFactura({ ...formDataFactura, subtotal: e.target.value })}
+                      placeholder="0.00"
+                      required
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Descuento ({simbolo})</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="input input-bordered w-full"
+                      value={formDataFactura.descuento}
+                      onChange={(e) => setFormDataFactura({ ...formDataFactura, descuento: e.target.value })}
+                      placeholder="0.00"
+                      min="0"
+                    />
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label flex justify-between">
+                      <span className="label-text font-medium">IGV ({simbolo})</span>
+                      <span className="label-text-alt">
+                        <label className="cursor-pointer flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            className="checkbox checkbox-xs"
+                            checked={formDataFactura.calcular_igv_auto}
+                            onChange={(e) => setFormDataFactura({ ...formDataFactura, calcular_igv_auto: e.target.checked })}
+                          />
+                          Auto {igvPct}%
+                        </label>
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="input input-bordered w-full"
+                      value={formDataFactura.calcular_igv_auto ? impuestoCalc.toFixed(2) : formDataFactura.impuesto}
+                      onChange={(e) => setFormDataFactura({ ...formDataFactura, impuesto: e.target.value })}
+                      placeholder="0.00"
+                      min="0"
+                      disabled={formDataFactura.calcular_igv_auto}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Total:</span>
+                    <span className="text-xl font-bold">{formatMoneda(totalCalc)}</span>
+                  </div>
                 </div>
 
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text font-medium">Descuento (S/)</span>
+                    <span className="label-text font-medium">Observaciones</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input input-bordered w-full"
-                    value={formDataFactura.descuento}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormDataFactura({ ...formDataFactura, descuento: value });
-                    }}
-                    placeholder="0.00"
-                    min="0"
+                  <textarea
+                    className="textarea textarea-bordered w-full"
+                    value={formDataFactura.observaciones}
+                    onChange={(e) => setFormDataFactura({ ...formDataFactura, observaciones: e.target.value })}
+                    rows={3}
+                    placeholder="Ej: Tratamiento de brackets - Pago inicial"
                   />
                 </div>
 
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium">Impuesto (S/)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    className="input input-bordered w-full"
-                    value={formDataFactura.impuesto}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormDataFactura({ ...formDataFactura, impuesto: value });
+                <div className="modal-action">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalFacturaDirecta(false);
+                      setFormDataFactura(ESTADO_FACTURA_INICIAL);
                     }}
-                    placeholder="0.00"
-                    min="0"
-                  />
+                    className="btn btn-ghost"
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Crear {esFactura ? 'Factura' : 'Boleta'}
+                  </button>
                 </div>
-              </div>
-
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total:</span>
-                  <span className="text-xl font-bold">
-                    S/ {(
-                      (parseFloat(formDataFactura.subtotal) || 0) - 
-                      (parseFloat(formDataFactura.descuento) || 0) + 
-                      (parseFloat(formDataFactura.impuesto) || 0)
-                    ).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Observaciones</span>
-                </label>
-                <textarea
-                  className="textarea textarea-bordered w-full"
-                  value={formDataFactura.observaciones}
-                  onChange={(e) => setFormDataFactura({ ...formDataFactura, observaciones: e.target.value })}
-                  rows={3}
-                  placeholder="Ej: Tratamiento de brackets - Pago inicial"
-                />
-              </div>
-
-              <div className="modal-action">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModalFacturaDirecta(false);
-                    setFormDataFactura({
-                      id_paciente: '',
-                      fecha: new Date().toISOString().split('T')[0],
-                      subtotal: '',
-                      descuento: '',
-                      impuesto: '',
-                      observaciones: '',
-                    });
-                  }}
-                  className="btn btn-ghost"
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Crear Factura
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div className="modal-backdrop" onClick={() => setShowModalFacturaDirecta(false)} />
           </div>
-          <div className="modal-backdrop" onClick={() => setShowModalFacturaDirecta(false)}></div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Modal crear factura desde cita */}
       {showModalFactura && (
@@ -599,12 +707,12 @@ function Facturacion() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-gray-600">Total Factura</p>
-                  <p className="text-2xl font-bold">S/ {facturaSeleccionada.total.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">{formatMoneda(facturaSeleccionada.total)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total Pagado</p>
                   <p className="text-2xl font-bold text-green-600">
-                    S/ {calcularTotalPagado(facturaSeleccionada.id).toFixed(2)}
+                    {formatMoneda(calcularTotalPagado(facturaSeleccionada.id))}
                   </p>
                 </div>
                 <div>

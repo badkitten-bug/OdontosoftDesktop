@@ -1,30 +1,88 @@
 const { getDatabase } = require('../db/database');
+const { validarDNI, validarRUC } = require('../validation/identidad');
+
+const TIPOS_VALIDOS = new Set(['boleta', 'factura']);
+
+function getConfigClinica(db) {
+  return db.prepare('SELECT * FROM configuracion_clinica WHERE id = 1').get() || {};
+}
+
+function serieParaTipo(tipo) {
+  return tipo === 'factura' ? 'F001' : 'B001';
+}
+
+/**
+ * Genera el siguiente número correlativo para una serie SUNAT.
+ * Devuelve { numero: 'F001-00000123', serie: 'F001', correlativo: 123 }.
+ */
+function siguienteCorrelativo(db, tipo) {
+  const serie = serieParaTipo(tipo);
+  const row = db
+    .prepare('SELECT MAX(correlativo) as max_corr FROM facturas WHERE serie = ?')
+    .get(serie);
+  const correlativo = (row?.max_corr || 0) + 1;
+  const numero = `${serie}-${String(correlativo).padStart(8, '0')}`;
+  return { numero, serie, correlativo };
+}
+
+/**
+ * Resuelve los datos del comprobante a partir de la entrada del cliente.
+ * Aplica reglas SUNAT: factura requiere RUC válido y razón social;
+ * boleta acepta DNI opcional pero validado si se proporciona.
+ */
+function resolverComprobante(data) {
+  const tipo = data.tipo_comprobante || 'boleta';
+  if (!TIPOS_VALIDOS.has(tipo)) {
+    throw new Error(`Tipo de comprobante inválido: ${tipo}`);
+  }
+
+  const cliente_dni = data.cliente_dni ? String(data.cliente_dni).trim() : null;
+  const cliente_ruc = data.cliente_ruc ? String(data.cliente_ruc).trim() : null;
+  const cliente_razon_social = data.cliente_razon_social
+    ? String(data.cliente_razon_social).trim()
+    : null;
+
+  if (tipo === 'factura') {
+    if (!cliente_ruc) throw new Error('Una factura requiere RUC del cliente');
+    const v = validarRUC(cliente_ruc);
+    if (!v.ok) throw new Error(v.error);
+    if (!cliente_razon_social) throw new Error('Una factura requiere razón social del cliente');
+  }
+  if (cliente_dni) {
+    const v = validarDNI(cliente_dni);
+    if (!v.ok) throw new Error(v.error);
+  }
+
+  return { tipo, cliente_dni, cliente_ruc, cliente_razon_social };
+}
+
+/**
+ * Calcula los montos de la factura.
+ * Si data.calcular_igv_auto === true, usa el porcentaje de la config.
+ * En caso contrario, usa el impuesto provisto (compatible con el flujo viejo).
+ */
+function calcularMontos(db, data) {
+  const subtotal = parseFloat(data.subtotal) || 0;
+  const descuento = parseFloat(data.descuento) || 0;
+  const baseImponible = Math.max(0, subtotal - descuento);
+
+  let impuesto;
+  if (data.calcular_igv_auto) {
+    const cfg = getConfigClinica(db);
+    const pct = Number(cfg.igv_porcentaje ?? 18);
+    impuesto = +(baseImponible * (pct / 100)).toFixed(2);
+  } else {
+    impuesto = parseFloat(data.impuesto) || 0;
+  }
+
+  const total = +(baseImponible + impuesto).toFixed(2);
+  return { subtotal, descuento, impuesto, total };
+}
 
 /**
  * Registra los handlers IPC para facturas y pagos
  */
 function register(ipcMain) {
-  // Generar número de factura único
-  function generarNumeroFactura() {
-    const db = getDatabase();
-    const fecha = new Date();
-    const año = fecha.getFullYear();
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-    
-    // Buscar el último número del mes
-    const ultimaFactura = db
-      .prepare('SELECT numero FROM facturas WHERE numero LIKE ? ORDER BY id DESC LIMIT 1')
-      .get(`FAC-${año}${mes}-%`);
-
-    let siguienteNumero = 1;
-    if (ultimaFactura) {
-      const partes = ultimaFactura.numero.split('-');
-      const numero = parseInt(partes[2]) || 0;
-      siguienteNumero = numero + 1;
-    }
-
-    return `FAC-${año}${mes}-${String(siguienteNumero).padStart(4, '0')}`;
-  }
 
   // Obtener todas las facturas
   ipcMain.handle('get-facturas', async (event, filtros = {}) => {
@@ -81,41 +139,49 @@ function register(ipcMain) {
     try {
       const db = getDatabase();
       const transaccion = db.transaction(() => {
-        const { id_paciente, fecha, subtotal = 0, descuento = 0, impuesto = 0, observaciones } = data;
-        
-        // Validar que id_paciente sea un número válido
-        if (!id_paciente || isNaN(parseInt(id_paciente))) {
+        const { id_paciente, fecha, observaciones } = data;
+
+        if (!id_paciente || Number.isNaN(Number.parseInt(id_paciente, 10))) {
           throw new Error('ID de paciente inválido');
         }
-        
-        // Asegurar que los valores numéricos sean correctos
-        const subtotalNum = parseFloat(subtotal) || 0;
-        const descuentoNum = parseFloat(descuento) || 0;
-        const impuestoNum = parseFloat(impuesto) || 0;
-        const total = subtotalNum - descuentoNum + impuestoNum;
-        
-        const numeroFactura = generarNumeroFactura();
+
+        const comprobante = resolverComprobante(data);
+        const montos = calcularMontos(db, data);
+        const { numero, serie, correlativo } = siguienteCorrelativo(db, comprobante.tipo);
         const fechaFactura = fecha || new Date().toISOString().split('T')[0];
-        
+
         const result = db
           .prepare(
-            'INSERT INTO facturas (numero, id_paciente, fecha, subtotal, descuento, impuesto, total, estado, observaciones) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            `INSERT INTO facturas
+             (numero, id_paciente, fecha, subtotal, descuento, impuesto, total,
+              estado, observaciones, tipo_comprobante, serie, correlativo,
+              cliente_dni, cliente_ruc, cliente_razon_social)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
-            numeroFactura,
-            parseInt(id_paciente),
+            numero,
+            Number.parseInt(id_paciente, 10),
             fechaFactura,
-            subtotalNum,
-            descuentoNum,
-            impuestoNum,
-            total,
+            montos.subtotal,
+            montos.descuento,
+            montos.impuesto,
+            montos.total,
             'pendiente',
-            observaciones || null
+            observaciones || null,
+            comprobante.tipo,
+            serie,
+            correlativo,
+            comprobante.cliente_dni,
+            comprobante.cliente_ruc,
+            comprobante.cliente_razon_social
           );
 
         return {
           id: result.lastInsertRowid,
-          numero: numeroFactura,
+          numero,
+          serie,
+          correlativo,
+          tipo_comprobante: comprobante.tipo,
           success: true,
         };
       });
@@ -127,46 +193,54 @@ function register(ipcMain) {
     }
   });
 
-  // Crear factura directamente (sin cita)
+  // Crear factura directamente (alias mantenido por compatibilidad UI)
   ipcMain.handle('crear-factura', async (event, data) => {
     try {
       const db = getDatabase();
       const transaccion = db.transaction(() => {
-        const { id_paciente, fecha, subtotal = 0, descuento = 0, impuesto = 0, observaciones } = data;
-        
-        // Validar que id_paciente sea un número válido
-        if (!id_paciente || isNaN(parseInt(id_paciente))) {
+        const { id_paciente, fecha, observaciones } = data;
+
+        if (!id_paciente || Number.isNaN(Number.parseInt(id_paciente, 10))) {
           throw new Error('ID de paciente inválido');
         }
-        
-        // Asegurar que los valores numéricos sean correctos
-        const subtotalNum = parseFloat(subtotal) || 0;
-        const descuentoNum = parseFloat(descuento) || 0;
-        const impuestoNum = parseFloat(impuesto) || 0;
-        const total = subtotalNum - descuentoNum + impuestoNum;
-        
-        const numeroFactura = generarNumeroFactura();
+
+        const comprobante = resolverComprobante(data);
+        const montos = calcularMontos(db, data);
+        const { numero, serie, correlativo } = siguienteCorrelativo(db, comprobante.tipo);
         const fechaFactura = fecha || new Date().toISOString().split('T')[0];
-        
+
         const result = db
           .prepare(
-            'INSERT INTO facturas (numero, id_paciente, fecha, subtotal, descuento, impuesto, total, estado, observaciones) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            `INSERT INTO facturas
+             (numero, id_paciente, fecha, subtotal, descuento, impuesto, total,
+              estado, observaciones, tipo_comprobante, serie, correlativo,
+              cliente_dni, cliente_ruc, cliente_razon_social)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
-            numeroFactura,
-            parseInt(id_paciente),
+            numero,
+            Number.parseInt(id_paciente, 10),
             fechaFactura,
-            subtotalNum,
-            descuentoNum,
-            impuestoNum,
-            total,
+            montos.subtotal,
+            montos.descuento,
+            montos.impuesto,
+            montos.total,
             'pendiente',
-            observaciones || null
+            observaciones || null,
+            comprobante.tipo,
+            serie,
+            correlativo,
+            comprobante.cliente_dni,
+            comprobante.cliente_ruc,
+            comprobante.cliente_razon_social
           );
 
         return {
           id: result.lastInsertRowid,
-          numero: numeroFactura,
+          numero,
+          serie,
+          correlativo,
+          tipo_comprobante: comprobante.tipo,
           success: true,
         };
       });
@@ -178,61 +252,90 @@ function register(ipcMain) {
     }
   });
 
-  // Crear factura desde una cita
-  ipcMain.handle('crear-factura-desde-cita', async (event, idCita) => {
+  // Crear factura desde una cita (IGV automático, tipo según datos del paciente)
+  ipcMain.handle('crear-factura-desde-cita', async (event, idCita, opciones = {}) => {
     try {
       const db = getDatabase();
       const transaccion = db.transaction(() => {
-        // Obtener la cita con sus tratamientos
         const cita = db
           .prepare(
-            'SELECT c.*, p.id as id_paciente FROM citas c LEFT JOIN pacientes p ON c.id_paciente = p.id WHERE c.id = ?'
+            `SELECT c.*, p.id as id_paciente, p.nombre as paciente_nombre,
+                    p.dni as paciente_dni
+             FROM citas c
+             LEFT JOIN pacientes p ON c.id_paciente = p.id
+             WHERE c.id = ?`
           )
           .get(idCita);
 
-        if (!cita) {
-          throw new Error('Cita no encontrada');
-        }
+        if (!cita) throw new Error('Cita no encontrada');
 
-        // Obtener tratamientos de la cita
         const tratamientos = db
           .prepare(
-            'SELECT ct.*, t.nombre as tratamiento_nombre FROM citas_tratamientos ct LEFT JOIN tratamientos t ON ct.id_tratamiento = t.id WHERE ct.id_cita = ?'
+            `SELECT ct.*, t.nombre as tratamiento_nombre
+             FROM citas_tratamientos ct
+             LEFT JOIN tratamientos t ON ct.id_tratamiento = t.id
+             WHERE ct.id_cita = ?`
           )
           .all(idCita);
 
-        // Calcular totales
         let subtotal = 0;
-        tratamientos.forEach((t) => {
-          const totalItem = (t.precio_unitario * t.cantidad) - (t.descuento || 0);
-          subtotal += totalItem;
+        for (const t of tratamientos) {
+          subtotal += (t.precio_unitario * t.cantidad) - (t.descuento || 0);
+        }
+
+        // El tipo se puede forzar desde la UI; si no, inferir por datos del paciente
+        const tipoSugerido = opciones.tipo_comprobante
+          || (opciones.cliente_ruc ? 'factura' : 'boleta');
+
+        const datosComprobante = {
+          tipo_comprobante: tipoSugerido,
+          cliente_dni: opciones.cliente_dni ?? cita.paciente_dni ?? null,
+          cliente_ruc: opciones.cliente_ruc ?? null,
+          cliente_razon_social: opciones.cliente_razon_social ?? cita.paciente_nombre ?? null,
+        };
+        const comprobante = resolverComprobante(datosComprobante);
+
+        const montos = calcularMontos(db, {
+          subtotal,
+          descuento: opciones.descuento || 0,
+          calcular_igv_auto: true,
         });
 
-        const descuento = 0; // Se puede agregar descuento general
-        const impuesto = 0; // Se puede calcular impuesto
-        const total = subtotal - descuento + impuesto;
+        const { numero, serie, correlativo } = siguienteCorrelativo(db, comprobante.tipo);
 
-        // Crear factura
-        const numeroFactura = generarNumeroFactura();
         const result = db
           .prepare(
-            'INSERT INTO facturas (numero, id_cita, id_paciente, fecha, subtotal, descuento, impuesto, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            `INSERT INTO facturas
+             (numero, id_cita, id_paciente, fecha, subtotal, descuento, impuesto, total,
+              estado, tipo_comprobante, serie, correlativo,
+              cliente_dni, cliente_ruc, cliente_razon_social)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
-            numeroFactura,
+            numero,
             idCita,
             cita.id_paciente,
             new Date().toISOString().split('T')[0],
-            subtotal,
-            descuento,
-            impuesto,
-            total,
-            'pendiente'
+            montos.subtotal,
+            montos.descuento,
+            montos.impuesto,
+            montos.total,
+            'pendiente',
+            comprobante.tipo,
+            serie,
+            correlativo,
+            comprobante.cliente_dni,
+            comprobante.cliente_ruc,
+            comprobante.cliente_razon_social
           );
 
         return {
           id: result.lastInsertRowid,
-          numero: numeroFactura,
+          numero,
+          serie,
+          correlativo,
+          tipo_comprobante: comprobante.tipo,
+          impuesto: montos.impuesto,
           success: true,
         };
       });

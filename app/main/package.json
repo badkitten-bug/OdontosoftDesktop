@@ -15,7 +15,10 @@
   },
   "type": "commonjs",
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^9.2.2"
+    "better-sqlite3": "^9.2.2",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3"
   }
 }

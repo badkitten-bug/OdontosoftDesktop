@@ -222,3 +222,20 @@ export const restaurarBackup = (id) => window.electronAPI?.restaurarBackup(id) |
 export const deleteBackup = (id) => window.electronAPI?.deleteBackup(id) || Promise.resolve({});
 export const exportarCSV = (tabla, rutaDestino) => window.electronAPI?.exportarCSV(tabla, rutaDestino) || Promise.resolve({});
 
+// Configuración de la clínica
+export const getConfiguracionClinica = () => window.electronAPI?.getConfiguracionClinica() || Promise.resolve(null);
+export const setConfiguracionClinica = (data) => window.electronAPI?.setConfiguracionClinica(data) || Promise.resolve({});
+export const marcarSetupCompletado = () => window.electronAPI?.marcarSetupCompletado() || Promise.resolve({});
+export const getEstadoSetup = () => window.electronAPI?.getEstadoSetup() || Promise.resolve({ setupCompletado: false });
+
+// Licencia
+export const getLicencia = () => window.electronAPI?.getLicencia() || Promise.resolve({ tipo: 'demo' });
+export const activarLicencia = (clave) => window.electronAPI?.activarLicencia(clave) || Promise.resolve({ success: false });
+export const desactivarLicencia = () => window.electronAPI?.desactivarLicencia() || Promise.resolve({ success: false });
+
+// Diagnóstico y actualizaciones
+export const exportarDiagnostico = () => window.electronAPI?.exportarDiagnostico() || Promise.resolve({ success: false });
+export const buscarActualizaciones = () => window.electronAPI?.buscarActualizaciones() || Promise.resolve({ success: false });
+export const instalarActualizacion = () => window.electronAPI?.instalarActualizacion() || Promise.resolve({ success: false });
+export const onUpdateStatus = (cb) => window.electronAPI?.onUpdateStatus?.(cb) || (() => {});
+

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Users, Package, FileText, Settings, UserCog, Calendar, Stethoscope, Receipt, 
-  LayoutDashboard, ClipboardList, Pill, Shield, Tag, HardDrive, ChevronDown, ChevronRight, BarChart3
+import {
+  Users, Package, FileText, Settings, UserCog, Calendar, Stethoscope, Receipt,
+  LayoutDashboard, ClipboardList, Pill, Shield, Tag, HardDrive, ChevronDown, ChevronRight, BarChart3,
+  KeyRound,
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
@@ -54,6 +55,7 @@ const menuCategories = [
       { path: '/horarios', label: 'Horarios', icon: Calendar, roles: ['admin'] },
       { path: '/usuarios', label: 'Usuarios', icon: Shield, roles: ['admin'] },
       { path: '/backups', label: 'Backups', icon: HardDrive, roles: ['admin'] },
+      { path: '/licencia', label: 'Licencia', icon: KeyRound, roles: ['admin'] },
       { path: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
     ],
   },
@@ -61,7 +63,7 @@ const menuCategories = [
 
 function Sidebar() {
   const location = useLocation();
-  const { currentUser } = useUser();
+  const { currentUser, licencia } = useUser();
   const [expandedCategories, setExpandedCategories] = useState({
     principal: true,
     clinica: true,
@@ -161,6 +163,16 @@ function Sidebar() {
           })}
         </ul>
       </nav>
+
+      {licencia?.tipo === 'demo' && (
+        <Link
+          to="/licencia"
+          className="mx-3 mb-2 mt-1 px-3 py-2 rounded-lg bg-amber-500/90 hover:bg-amber-500 text-white text-xs font-semibold text-center transition flex items-center justify-center gap-1"
+          title="Activa tu licencia"
+        >
+          <KeyRound size={14} /> Versión Demo
+        </Link>
+      )}
 
       <div className="p-4 border-t border-blue-500 text-xs text-blue-200">
         <p className="font-medium">{currentUser?.nombre || 'Usuario'}</p>

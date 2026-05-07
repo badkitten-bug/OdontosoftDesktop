@@ -44,3 +44,7 @@ release/
 # Environment
 .env
 .env.local
+
+# Secrets (license signing keys — NEVER COMMIT)
+secrets/
+*.pem

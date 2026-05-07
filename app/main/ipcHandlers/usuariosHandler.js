@@ -8,6 +8,7 @@ const {
   requireSesion,
   requireRol,
 } = require('../auth/sesiones');
+const { validarPasswordFuerte } = require('../auth/passwords');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -38,8 +39,11 @@ async function verifyPassword(stored, plain) {
   return { ok: false, legacy: false };
 }
 
-function passwordEsValido(password) {
-  return typeof password === 'string' && password.length >= 8;
+function asegurarPasswordValido(password) {
+  const { ok, error } = validarPasswordFuerte(password);
+  if (!ok) {
+    throw new Error(error);
+  }
 }
 
 function register(ipcMain) {
@@ -68,9 +72,7 @@ function register(ipcMain) {
       if (!username || !nombre) {
         throw new Error('username y nombre son obligatorios');
       }
-      if (!passwordEsValido(password)) {
-        throw new Error('La contraseña debe tener al menos 8 caracteres');
-      }
+      asegurarPasswordValido(password);
 
       const passwordHash = await hashPassword(password);
       const result = db
@@ -193,9 +195,7 @@ function register(ipcMain) {
     if (!username || !nombre || !rol) {
       throw new Error('username, nombre y rol son obligatorios');
     }
-    if (!passwordEsValido(password)) {
-      throw new Error('La contraseña debe tener al menos 8 caracteres');
-    }
+    asegurarPasswordValido(password);
     const rolesValidos = ['admin', 'recepcionista', 'odontologo'];
     if (!rolesValidos.includes(rol)) {
       throw new Error('Rol inválido');
@@ -233,8 +233,8 @@ function register(ipcMain) {
     const db = getDatabase();
     const { nombre, email, rol, id_odontologo, activo, password } = data || {};
 
-    if (password !== undefined && password !== null && password !== '' && !passwordEsValido(password)) {
-      throw new Error('La contraseña debe tener al menos 8 caracteres');
+    if (password) {
+      asegurarPasswordValido(password);
     }
 
     let query, params;

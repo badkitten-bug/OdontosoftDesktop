@@ -41,3 +41,11 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 
+# electron-updater leerá esto para saber dónde buscar nuevas versiones.
+# Reemplaza `owner` con tu user/org real cuando crees el repo en GitHub.
+publish:
+  - provider: github
+    owner: odontosoft
+    repo: desktop
+    releaseType: release
+

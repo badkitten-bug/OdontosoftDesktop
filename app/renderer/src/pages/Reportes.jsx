@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, DollarSign, Users, Calendar, Download, FileText } from 'lucide-react';
 import { getFacturas, getCitas, getPacientes, getTratamientos } from '../services/dbService';
 import { exportarAExcel } from '../utils/excelExporter';
+import { formatMoneda } from '../utils/formatters';
 
 function Reportes() {
   const [loading, setLoading] = useState(true);
@@ -213,7 +214,7 @@ function Reportes() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Ingresos Totales</p>
-              <p className="text-3xl font-bold text-gray-800">S/ {estadisticas.ingresos.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-gray-800">{formatMoneda(estadisticas.ingresos)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <DollarSign className="text-green-600" size={24} />
@@ -255,7 +256,7 @@ function Reportes() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Promedio Factura</p>
-              <p className="text-3xl font-bold text-gray-800">S/ {estadisticas.promedioFactura.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-gray-800">{formatMoneda(estadisticas.promedioFactura)}</p>
             </div>
             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="text-orange-600" size={24} />
@@ -283,7 +284,7 @@ function Reportes() {
                       style={{ width: `${Math.min((item.total / Math.max(...ingresosPorMes.map(i => i.total), 1)) * 100, 100)}%` }}
                     >
                       <span className="text-xs text-white font-medium">
-                        S/ {item.total.toFixed(2)}
+                        {formatMoneda(item.total)}
                       </span>
                     </div>
                   </div>

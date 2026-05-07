@@ -164,4 +164,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restaurarBackup: auth('restaurar-backup'),
   deleteBackup: auth('delete-backup'),
   exportarCSV: auth('exportar-csv'),
+
+  // Configuración de la clínica
+  getConfiguracionClinica: noauth('get-configuracion-clinica'),
+  setConfiguracionClinica: auth('set-configuracion-clinica'),
+  marcarSetupCompletado: auth('marcar-setup-completado'),
+  getEstadoSetup: auth('get-estado-setup'),
+
+  // Licencia
+  getLicencia: auth('get-licencia'),
+  activarLicencia: auth('activar-licencia'),
+  desactivarLicencia: auth('desactivar-licencia'),
+
+  // Diagnóstico y actualizaciones
+  exportarDiagnostico: auth('exportar-diagnostico'),
+  buscarActualizaciones: auth('buscar-actualizaciones'),
+  instalarActualizacion: auth('instalar-actualizacion'),
+  onUpdateStatus: (cb) => {
+    const channel = 'update-status';
+    const listener = (_event, payload) => cb?.(payload);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
 });

@@ -5,11 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import Notificaciones from './Notificaciones';
 import GlobalSearch from './GlobalSearch';
 import { getLanguage, setLanguage } from '../utils/i18n';
+import { getConfiguracionClinica } from '../services/dbService';
 
 function Header() {
   const { currentUser, logout } = useUser();
   const navigate = useNavigate();
   const [currentLang, setCurrentLang] = useState(getLanguage());
+  const [nombreClinica, setNombreClinica] = useState('');
   const today = new Date();
   const formattedDate = today.toLocaleDateString(currentLang === 'en' ? 'en-US' : 'es-ES', {
     weekday: 'long',
@@ -20,6 +22,18 @@ function Header() {
 
   useEffect(() => {
     setCurrentLang(getLanguage());
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await getConfiguracionClinica();
+        if (!cancelled && cfg?.nombre_clinica) {
+          setNombreClinica(cfg.nombre_clinica);
+        }
+      } catch (e) {
+        console.error('No se pudo leer la configuración de la clínica:', e);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleLanguageChange = (lang) => {
@@ -55,7 +69,7 @@ function Header() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-xl font-semibold text-gray-800">
-            Panel de Control
+            {nombreClinica || 'Panel de Control'}
           </h2>
         </div>
         

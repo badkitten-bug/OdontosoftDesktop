@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Users, Package, TrendingUp, AlertCircle } from 'lucide-react';
 import { getCitasPorFecha, getFacturas, getPacientes, getProductosStockBajo } from '../services/dbService';
+import { formatMoneda } from '../utils/formatters';
 
 function Dashboard() {
   const [citasHoy, setCitasHoy] = useState([]);
@@ -95,7 +96,7 @@ function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">Ingresos del Mes</p>
-              <p className="text-3xl font-bold text-gray-800">S/ {ingresosMes.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-gray-800">{formatMoneda(ingresosMes)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <DollarSign className="text-green-600" size={24} />

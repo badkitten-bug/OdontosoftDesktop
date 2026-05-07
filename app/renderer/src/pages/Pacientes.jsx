@@ -4,6 +4,7 @@ import DynamicForm from '../components/DynamicForm';
 import ColumnSelector from '../components/ColumnSelector';
 import { getPacientes, addPaciente, updatePaciente, deletePaciente, getCamposDinamicos } from '../services/dbService';
 import { exportarPacientes } from '../utils/excelExporter';
+import { validarDNI } from '../utils/identidad';
 
 function Pacientes() {
   const [pacientes, setPacientes] = useState([]);
@@ -130,9 +131,14 @@ function Pacientes() {
         return;
       }
 
-      // Validar DNI único (se validará en el backend también)
+      // Validar DNI: formato peruano (8 dígitos) y unicidad
       if (dni && dni.trim()) {
-        const pacienteConMismoDNI = pacientes.find(p => 
+        const v = validarDNI(dni.trim());
+        if (!v.ok) {
+          alert(`DNI: ${v.error}`);
+          return;
+        }
+        const pacienteConMismoDNI = pacientes.find(p =>
           p.dni && p.dni.trim() === dni.trim() && (!editingId || p.id !== editingId)
         );
         if (pacienteConMismoDNI) {

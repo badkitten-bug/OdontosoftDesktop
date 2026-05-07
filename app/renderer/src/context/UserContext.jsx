@@ -1,19 +1,48 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   setSessionId as preloadSetSessionId,
   clearSessionId as preloadClearSessionId,
   whoami,
   logout as ipcLogout,
+  getEstadoSetup,
+  getConfiguracionClinica,
+  getLicencia,
 } from '../services/dbService';
+import { setClinicConfigCache } from '../utils/formatters';
 
 const UserContext = createContext(null);
 const SESSION_KEY = 'odontosoft.sessionId';
 
 export function UserProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [setupCompletado, setSetupCompletado] = useState(true);
+  const [licencia, setLicencia] = useState({ tipo: 'demo' });
   const [hydrating, setHydrating] = useState(true);
 
-  // Al montar: si hay sessionId guardado, validarlo en main vía whoami
+  const refreshLicencia = useCallback(async () => {
+    try {
+      const lic = await getLicencia();
+      if (lic) setLicencia(lic);
+    } catch (e) {
+      console.error('Error consultando licencia:', e);
+    }
+  }, []);
+
+  const refreshSetup = useCallback(async () => {
+    try {
+      const [estado, cfg, lic] = await Promise.all([
+        getEstadoSetup(),
+        getConfiguracionClinica(),
+        getLicencia(),
+      ]);
+      setSetupCompletado(!!estado?.setupCompletado);
+      if (cfg) setClinicConfigCache(cfg);
+      if (lic) setLicencia(lic);
+    } catch (e) {
+      console.error('Error consultando estado de setup:', e);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -28,6 +57,7 @@ export function UserProvider({ children }) {
         if (cancelled) return;
         if (res?.autenticado && res.usuario) {
           setCurrentUser(res.usuario);
+          await refreshSetup();
         } else {
           localStorage.removeItem(SESSION_KEY);
           preloadClearSessionId();
@@ -41,9 +71,9 @@ export function UserProvider({ children }) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshSetup]);
 
-  const onLoginSuccess = (usuario, sessionId) => {
+  const onLoginSuccess = useCallback(async (usuario, sessionId) => {
     if (!sessionId) {
       console.warn('Login sin sessionId');
       return;
@@ -51,9 +81,10 @@ export function UserProvider({ children }) {
     localStorage.setItem(SESSION_KEY, sessionId);
     preloadSetSessionId(sessionId);
     setCurrentUser(usuario);
-  };
+    await refreshSetup();
+  }, [refreshSetup]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await ipcLogout();
     } catch (e) {
@@ -62,13 +93,39 @@ export function UserProvider({ children }) {
     localStorage.removeItem(SESSION_KEY);
     preloadClearSessionId();
     setCurrentUser(null);
-  };
+  }, []);
 
-  return (
-    <UserContext.Provider value={{ currentUser, onLoginSuccess, logout, hydrating }}>
-      {children}
-    </UserContext.Provider>
+  const markSetupCompleted = useCallback(() => {
+    setSetupCompletado(true);
+    refreshSetup();
+  }, [refreshSetup]);
+
+  const value = useMemo(
+    () => ({
+      currentUser,
+      setupCompletado,
+      licencia,
+      hydrating,
+      onLoginSuccess,
+      logout,
+      refreshSetup,
+      refreshLicencia,
+      markSetupCompleted,
+    }),
+    [
+      currentUser,
+      setupCompletado,
+      licencia,
+      hydrating,
+      onLoginSuccess,
+      logout,
+      refreshSetup,
+      refreshLicencia,
+      markSetupCompleted,
+    ]
   );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
 export function useUser() {

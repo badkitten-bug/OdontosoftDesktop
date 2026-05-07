@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
+import WelcomeWizard from './components/WelcomeWizard';
 import Dashboard from './pages/Dashboard';
 import Calendario from './pages/Calendario';
 import Pacientes from './pages/Pacientes';
@@ -21,9 +22,10 @@ import Promociones from './pages/Promociones';
 import Backups from './pages/Backups';
 import Configuracion from './pages/Configuracion';
 import Reportes from './pages/Reportes';
+import Licencia from './pages/Licencia';
 
 function AppContent() {
-  const { currentUser, hydrating } = useUser();
+  const { currentUser, hydrating, setupCompletado } = useUser();
 
   // Mientras se valida la sesión guardada, mostrar splash
   if (hydrating) {
@@ -32,6 +34,11 @@ function AppContent() {
         <span className="loading loading-spinner loading-lg text-primary" />
       </div>
     );
+  }
+
+  // Si hay usuario admin pero el setup aún no se completó, mostrar wizard
+  if (currentUser && !setupCompletado && currentUser.rol === 'admin') {
+    return <WelcomeWizard />;
   }
 
   // Si no hay usuario, mostrar solo login
@@ -71,6 +78,7 @@ function AppContent() {
             <Route path="/backups" element={<ProtectedRoute requiredRole="admin"><Backups /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute requiredRole="admin"><Configuracion /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/licencia" element={<ProtectedRoute requiredRole="admin"><Licencia /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>
