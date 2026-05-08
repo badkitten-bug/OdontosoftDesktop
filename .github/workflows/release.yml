@@ -43,6 +43,9 @@ jobs:
           cd app/main && bun install
           cd ../renderer && bun install
 
+      - name: Generate icons (.ico, .icns, .png) from SVG
+        run: bun run icons
+
       - name: Build renderer
         run: bun run build:renderer
 

@@ -74,9 +74,8 @@ nsis:
   language: "1034"                    # español tradicional/internacional
 
 # electron-updater leerá esto para saber dónde buscar nuevas versiones.
-# Reemplaza `owner` con tu user/org real cuando crees el repo en GitHub.
 publish:
   - provider: github
-    owner: odontosoft
-    repo: desktop
+    owner: badkitten-bug
+    repo: OdontosoftDesktop
     releaseType: release

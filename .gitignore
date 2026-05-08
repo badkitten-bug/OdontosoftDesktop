@@ -48,3 +48,10 @@ release/
 # Secrets (license signing keys — NEVER COMMIT)
 secrets/
 *.pem
+
+# Iconos generados (los regenera `bun run icons` desde build/source/logo.svg)
+build/icon.ico
+build/icon.icns
+build/icon.png
+build/icons/
+build/source/logo.png

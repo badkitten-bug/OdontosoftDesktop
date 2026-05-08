@@ -19,10 +19,17 @@ const crypto = require('node:crypto');
  * La privada NUNCA se commitea — vive en `secrets/license-private.pem` (gitignored).
  */
 
-// Placeholder. Reemplazar con la salida de scripts/generarParClaves.js.
-// Mientras esté como placeholder, ninguna licencia es válida y la app permanece en demo.
+// Clave pública RSA-2048 generada por scripts/generarParClaves.js.
+// La privada vive en secrets/license-private.pem (gitignored) y se usa con
+// scripts/generarLicencia.js para emitir claves a clientes.
 const PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
-PUBLIC_KEY_PLACEHOLDER_REEMPLAZAR_TRAS_GENERAR_PAR
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkGcT3hMrR5Nr/Ob34Dcp
+Xd4x0Mwpy/AuFtl7DmHRBjA7nJdUEPm4IcCBT7z4DudViOf0e6DToNzm78JMazTr
+C86xPkSmphdWTA2ybn4WEB/HNNnwwieLKii0/h47GBDcStibBg14BUnwEWaPBaZ7
+T4/9X++0fAaBw8GV6+CX78hKNd0xifnfpWishItJJwbpGuUBdd927QTCFn6LaAX8
+Guixv/Ix/EKBsiHkfclpnh9mZZwrZKHy/9T3LQpMxkJ5hRrui/oldyLSyONOEBu2
+FMs+X3NFgaOcBRizvmXhYNL34loraX/pD0Akbm02y71vE/RyA8ESVf4GEwqugvH0
+zwIDAQAB
 -----END PUBLIC KEY-----`;
 
 const TIPOS_VALIDOS = new Set(['demo', 'esencial', 'pro', 'cloud']);

@@ -9,6 +9,7 @@
     "build": "bun run build:renderer",
     "build:renderer": "cd app/renderer && bun run build",
     "make": "bun run build && electron-builder",
+    "icons": "node scripts/generarIconos.js",
     "postinstall": "cd app/main && bun install && cd ../renderer && bun install && cd ../main && npx electron-rebuild -f -w better-sqlite3",
     "rebuild": "cd app/main && npx electron-rebuild -f -w better-sqlite3",
     "test": "bun run test:main && bun run test:renderer",
@@ -29,9 +30,11 @@
     "better-sqlite3": "^9.2.2"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "electron-icon-builder": "^2.0.1",
     "electron-rebuild": "^3.2.9",
     "wait-on": "^7.2.0"
   }
