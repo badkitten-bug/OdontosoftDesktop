@@ -54,18 +54,26 @@ jobs:
         run: bunx electron-rebuild -f -w better-sqlite3
         shell: bash
 
-      # IMPORTANTE: para firmar el .exe necesitas dos secrets en el repo
-      # (Settings → Secrets and variables → Actions):
-      #   CSC_LINK            → contenido del .pfx en base64 (data URI)
-      #   CSC_KEY_PASSWORD    → contraseña del .pfx
-      # Si no están configurados, el build sigue pero el .exe no estará firmado.
+      # Para firmar el .exe (recomendado en producción, evita la alerta de
+      # SmartScreen) configura estos dos secrets en el repo:
+      #   Settings → Secrets and variables → Actions:
+      #     CSC_LINK            → contenido del .pfx en base64
+      #     CSC_KEY_PASSWORD    → contraseña del .pfx
+      # Si no están configurados, el build sigue funcionando pero el .exe queda
+      # sin firmar. NO definimos CSC_LINK como string vacío porque
+      # electron-builder lo interpreta como una ruta y revienta.
       - name: Build & Publish (electron-builder)
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          # Notarization de macOS (sólo si activas macOS en la matrix)
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: bunx electron-builder --publish always
+          SECRET_CSC_LINK: ${{ secrets.CSC_LINK }}
+          SECRET_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if [ -n "$SECRET_CSC_LINK" ]; then
+            echo "Code signing enabled"
+            export CSC_LINK="$SECRET_CSC_LINK"
+            export CSC_KEY_PASSWORD="$SECRET_CSC_KEY_PASSWORD"
+          else
+            echo "Building unsigned (no CSC_LINK secret configured)"
+          fi
+          bunx electron-builder --publish always
