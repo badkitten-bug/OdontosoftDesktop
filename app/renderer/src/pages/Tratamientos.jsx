@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, DollarSign, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, DollarSign, Clock, Stethoscope } from 'lucide-react';
 import DynamicForm from '../components/DynamicForm';
+import EmptyState from '../components/EmptyState';
 import { getTratamientos, addTratamiento, updateTratamiento, deleteTratamiento } from '../services/dbService';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Tratamientos() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [tratamientos, setTratamientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -38,7 +43,7 @@ function Tratamientos() {
       setTratamientos(data);
     } catch (error) {
       console.error('Error al cargar tratamientos:', error);
-      alert('Error al cargar tratamientos');
+      toast.error(humanizeError(error, 'No se pudieron cargar los tratamientos.'));
     } finally {
       setLoading(false);
     }
@@ -72,15 +77,17 @@ function Tratamientos() {
 
       if (editingId) {
         await updateTratamiento(editingId, tratamientoData);
+        toast.success('Tratamiento actualizado.');
       } else {
         await addTratamiento(tratamientoData);
+        toast.success('Tratamiento registrado.');
       }
 
       await loadTratamientos();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar tratamiento:', error);
-      alert('Error al guardar tratamiento');
+      toast.error(humanizeError(error, 'No se pudo guardar el tratamiento.'));
     }
   };
 
@@ -99,14 +106,22 @@ function Tratamientos() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este tratamiento?')) return;
+    const tratamiento = tratamientos.find(t => t.id === id);
+    const nombreSeguro = tratamiento?.nombre || 'este tratamiento';
+    const ok = await confirm({
+      title: 'Eliminar tratamiento',
+      message: `Vas a eliminar "${nombreSeguro}" del catálogo. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteTratamiento(id);
+      toast.success('Tratamiento eliminado.');
       await loadTratamientos();
     } catch (error) {
       console.error('Error al eliminar tratamiento:', error);
-      alert('Error al eliminar tratamiento');
+      toast.error(humanizeError(error, 'No se pudo eliminar el tratamiento.'));
     }
   };
 
@@ -161,9 +176,13 @@ function Tratamientos() {
         {loading ? (
           <div className="text-center py-8">Cargando tratamientos...</div>
         ) : filteredTratamientos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay tratamientos registrados
-          </div>
+          <EmptyState
+            icon={Stethoscope}
+            title="Aún no tienes tratamientos"
+            description="Define tu catálogo con precios y duración. Después podrás asignarlos en citas y comprobantes."
+            actionLabel="Crear primer tratamiento"
+            onAction={() => setShowModal(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

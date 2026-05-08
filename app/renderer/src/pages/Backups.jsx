@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Download, Upload, Trash2, FileArchive, Calendar } from 'lucide-react';
 import { getBackups, crearBackup, restaurarBackup, deleteBackup } from '../services/dbService';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Backups() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCrearModal, setShowCrearModal] = useState(false);
@@ -23,7 +28,7 @@ function Backups() {
       setBackups(data);
     } catch (error) {
       console.error('Error al cargar backups:', error);
-      alert('Error al cargar backups');
+      toast.error(humanizeError(error, 'No se pudieron cargar los backups.'));
     } finally {
       setLoading(false);
     }
@@ -37,39 +42,53 @@ function Backups() {
       await loadBackups();
       setShowCrearModal(false);
       setBackupData({ nombre: '', descripcion: '' });
-      alert('Backup creado exitosamente');
+      toast.success('Backup creado.');
     } catch (error) {
       console.error('Error al crear backup:', error);
-      alert('Error al crear backup: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo crear el backup.'));
     } finally {
       setCreando(false);
     }
   };
 
   const handleRestaurar = async (id) => {
-    if (!confirm('¿Estás seguro de restaurar este backup? Esto reemplazará todos los datos actuales. La aplicación se reiniciará.')) return;
-    
+    const ok = await confirm({
+      title: 'Restaurar backup',
+      message:
+        'Vas a restaurar este backup. Esto REEMPLAZARÁ todos los datos actuales con los del backup. ' +
+        'La aplicación se recargará al terminar. Esta acción no se puede deshacer.',
+      confirmLabel: 'Sí, restaurar',
+    });
+    if (!ok) return;
+
     try {
       const resultado = await restaurarBackup(id);
-      if (resultado.success) {
-        alert('Backup restaurado. La aplicación se reiniciará.');
-        // En una app real, aquí reiniciarías la aplicación
-        window.location.reload();
+      if (resultado?.success) {
+        toast.success('Backup restaurado. La aplicación se recargará.');
+        setTimeout(() => window.location.reload(), 800);
       }
     } catch (error) {
       console.error('Error al restaurar backup:', error);
-      alert('Error al restaurar backup: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo restaurar el backup.'));
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este backup?')) return;
+    const backup = backups.find(b => b.id === id);
+    const detalle = backup?.nombre_archivo || 'este backup';
+    const ok = await confirm({
+      title: 'Eliminar backup',
+      message: `Vas a eliminar el archivo "${detalle}". Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deleteBackup(id);
+      toast.success('Backup eliminado.');
       await loadBackups();
     } catch (error) {
       console.error('Error al eliminar backup:', error);
-      alert('Error al eliminar backup');
+      toast.error(humanizeError(error, 'No se pudo eliminar el backup.'));
     }
   };
 
@@ -114,9 +133,13 @@ function Backups() {
         {loading ? (
           <div className="text-center py-8">Cargando backups...</div>
         ) : backups.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay backups creados
-          </div>
+          <EmptyState
+            icon={FileArchive}
+            title="Aún no hay backups"
+            description="La app crea uno automático cada vez que cierras sesión, pero también puedes crear uno manual ahora antes de un cambio importante."
+            actionLabel="Crear backup ahora"
+            onAction={() => setShowCrearModal(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

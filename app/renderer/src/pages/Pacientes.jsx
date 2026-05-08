@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Columns, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Columns, Download, Users } from 'lucide-react';
 import DynamicForm from '../components/DynamicForm';
 import ColumnSelector from '../components/ColumnSelector';
+import EmptyState from '../components/EmptyState';
 import { getPacientes, addPaciente, updatePaciente, deletePaciente, getCamposDinamicos } from '../services/dbService';
 import { exportarPacientes } from '../utils/excelExporter';
 import { validarDNI } from '../utils/identidad';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Pacientes() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -88,8 +93,8 @@ function Pacientes() {
       setPacientes(data || []);
     } catch (error) {
       console.error('Error al cargar pacientes:', error);
-      alert('Error al cargar pacientes');
-      setPacientes([]); // Asegurar que el estado sea un array vacío en caso de error
+      toast.error(humanizeError(error, 'No se pudieron cargar los pacientes.'));
+      setPacientes([]);
     } finally {
       setLoading(false);
     }
@@ -124,25 +129,23 @@ function Pacientes() {
         return acc;
       }, {});
       
-      // Validar que el nombre no esté vacío (verificar antes de trim)
       const nombreTrimmed = nombre ? nombre.trim() : '';
       if (!nombreTrimmed) {
-        alert('El nombre es requerido');
+        toast.warning('El nombre es obligatorio.');
         return;
       }
 
-      // Validar DNI: formato peruano (8 dígitos) y unicidad
       if (dni && dni.trim()) {
         const v = validarDNI(dni.trim());
         if (!v.ok) {
-          alert(`DNI: ${v.error}`);
+          toast.warning(`DNI: ${v.error}`);
           return;
         }
         const pacienteConMismoDNI = pacientes.find(p =>
           p.dni && p.dni.trim() === dni.trim() && (!editingId || p.id !== editingId)
         );
         if (pacienteConMismoDNI) {
-          alert('Ya existe un paciente con este DNI');
+          toast.warning('Ya existe un paciente con este DNI.');
           return;
         }
       }
@@ -164,25 +167,21 @@ function Pacientes() {
         datos_extra: datosExtraFiltrados,
       };
 
-      let result;
       if (editingId) {
-        result = await updatePaciente(editingId, pacienteData);
-        console.log('Paciente actualizado:', result); // Debug
+        await updatePaciente(editingId, pacienteData);
+        toast.success('Paciente actualizado.');
       } else {
-        result = await addPaciente(pacienteData);
-        console.log('Paciente agregado:', result); // Debug
+        await addPaciente(pacienteData);
+        toast.success('Paciente registrado.');
       }
 
-      // Cerrar modal primero
       handleCloseModal();
-      
-      // Pequeño delay para asegurar que el modal se cierre antes de recargar
       setTimeout(async () => {
         await loadPacientes();
       }, 100);
     } catch (error) {
       console.error('Error al guardar paciente:', error);
-      alert('Error al guardar paciente: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo guardar el paciente.'));
     }
   };
 
@@ -198,14 +197,24 @@ function Pacientes() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este paciente?')) return;
+    const paciente = pacientes.find(p => p.id === id);
+    const nombreSeguro = paciente?.nombre || 'este paciente';
+    const ok = await confirm({
+      title: 'Eliminar paciente',
+      message:
+        `Vas a eliminar a "${nombreSeguro}". Esta acción borrará también su historial clínico, ` +
+        `citas, facturas y archivos relacionados. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deletePaciente(id);
+      toast.success('Paciente eliminado.');
       await loadPacientes();
     } catch (error) {
       console.error('Error al eliminar paciente:', error);
-      alert('Error al eliminar paciente');
+      toast.error(humanizeError(error, 'No se pudo eliminar el paciente.'));
     }
   };
 
@@ -363,9 +372,23 @@ function Pacientes() {
         {loading ? (
           <div className="text-center py-8">Cargando pacientes...</div>
         ) : filteredPacientes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay pacientes registrados
-          </div>
+          searchTerm ? (
+            <EmptyState
+              icon={Search}
+              title="Sin resultados"
+              description={`No encontramos pacientes que coincidan con "${searchTerm}". Prueba con otro término.`}
+              actionLabel="Limpiar búsqueda"
+              onAction={() => setSearchTerm('')}
+            />
+          ) : (
+            <EmptyState
+              icon={Users}
+              title="Aún no tienes pacientes"
+              description="Registra tu primer paciente para empezar a usar OdontoSoft. Solo necesitas su nombre."
+              actionLabel="Registrar primer paciente"
+              onAction={() => setShowModal(true)}
+            />
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

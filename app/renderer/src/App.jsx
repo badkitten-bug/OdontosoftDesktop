@@ -27,11 +27,16 @@ import Licencia from './pages/Licencia';
 function AppContent() {
   const { currentUser, hydrating, setupCompletado } = useUser();
 
-  // Mientras se valida la sesión guardada, mostrar splash
+  // Mientras se valida la sesión guardada, mostrar splash con logo
   if (hydrating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-        <span className="loading loading-spinner loading-lg text-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-100">
+        <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-600 rounded-3xl shadow-lg mb-6">
+          <span className="text-5xl">🦷</span>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-1">OdontoSoft</h1>
+        <p className="text-gray-500 text-sm mb-6">Sistema de gestión clínica</p>
+        <span className="loading loading-bars loading-md text-primary" />
       </div>
     );
   }

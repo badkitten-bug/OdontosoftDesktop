@@ -8,6 +8,7 @@ import {
   exportarDiagnostico, buscarActualizaciones, instalarActualizacion, onUpdateStatus,
 } from '../services/dbService';
 import { useUser } from '../context/UserContext';
+import { useConfirm } from '../context/UIContext';
 
 const TIPO_LABEL = {
   demo: 'Demo',
@@ -18,6 +19,7 @@ const TIPO_LABEL = {
 
 function Licencia() {
   const { refreshLicencia } = useUser();
+  const confirm = useConfirm();
   const [estado, setEstado] = useState(null);
   const [clave, setClave] = useState('');
   const [error, setError] = useState('');
@@ -126,7 +128,14 @@ function Licencia() {
   };
 
   const desactivar = async () => {
-    if (!confirm('¿Volver al modo demo? Perderás los privilegios de la licencia actual.')) return;
+    const ok = await confirm({
+      title: 'Volver a modo demo',
+      message:
+        'La licencia actual se desactivará en esta computadora. Podrás volver a activarla pegando ' +
+        'la clave que ya tienes — pero úsalo solo si vas a mover la app a otra PC.',
+      confirmLabel: 'Sí, desactivar',
+    });
+    if (!ok) return;
     try {
       await desactivarLicencia();
       await cargar();

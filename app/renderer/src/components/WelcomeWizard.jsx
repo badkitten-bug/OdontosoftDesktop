@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Building2,
   CheckCircle2,
@@ -6,6 +7,11 @@ import {
   AlertCircle,
   ChevronRight,
   ChevronLeft,
+  Users,
+  Stethoscope,
+  Calendar,
+  Receipt,
+  PartyPopper,
 } from 'lucide-react';
 import {
   getConfiguracionClinica,
@@ -26,8 +32,36 @@ const MONEDAS = [
   { simbolo: '€', codigo: 'EUR', label: 'Euro (€)' },
 ];
 
+const ACCIONES_BIENVENIDA = [
+  {
+    titulo: 'Registra a tu primer paciente',
+    descripcion: 'Empieza a llevar tus historias clínicas digitales.',
+    ruta: '/pacientes',
+    icon: Users,
+  },
+  {
+    titulo: 'Configura odontólogos y horarios',
+    descripcion: 'Define quién trabaja y en qué horarios atiende.',
+    ruta: '/odontologos',
+    icon: Stethoscope,
+  },
+  {
+    titulo: 'Crea tu catálogo de tratamientos',
+    descripcion: 'Define precios y duración de cada procedimiento.',
+    ruta: '/tratamientos',
+    icon: Calendar,
+  },
+  {
+    titulo: 'Aprende a emitir comprobantes',
+    descripcion: 'Boletas y facturas con IGV automático y numeración SUNAT.',
+    ruta: '/facturacion',
+    icon: Receipt,
+  },
+];
+
 function WelcomeWizard() {
   const { markSetupCompleted } = useUser();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -138,13 +172,18 @@ function WelcomeWizard() {
     }
     if (step === 1) {
       const ok = await guardarPreferencias();
-      if (!ok) return;
-      try {
-        await marcarSetupCompletado();
-        markSetupCompleted();
-      } catch (err) {
-        setError(err?.message || 'No se pudo finalizar la configuración');
-      }
+      if (ok) setStep(2);
+    }
+  };
+
+  const finalizarYAbrir = async (ruta) => {
+    setError('');
+    try {
+      await marcarSetupCompletado();
+      markSetupCompleted();
+      if (ruta) navigate(ruta);
+    } catch (err) {
+      setError(err?.message || 'No se pudo finalizar la configuración');
     }
   };
 
@@ -161,12 +200,17 @@ function WelcomeWizard() {
             <span className="text-4xl">🦷</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-1">¡Bienvenido a OdontoSoft!</h1>
-          <p className="text-gray-600">Vamos a configurar tu clínica en 2 pasos</p>
+          <p className="text-gray-600">
+            {step < 2
+              ? 'Vamos a configurar tu clínica en 2 pasos'
+              : 'Listo. Tu clínica ya está configurada.'}
+          </p>
         </div>
 
         <ul className="steps w-full mb-6">
           <li className={`step ${step >= 0 ? 'step-primary' : ''}`}>Datos de la clínica</li>
           <li className={`step ${step >= 1 ? 'step-primary' : ''}`}>Preferencias</li>
+          <li className={`step ${step >= 2 ? 'step-primary' : ''}`}>¡Listo!</li>
         </ul>
 
         {error && (
@@ -324,30 +368,75 @@ function WelcomeWizard() {
           </div>
         )}
 
-        <div className="flex justify-between mt-8">
-          <button
-            type="button"
-            className="btn btn-ghost gap-2"
-            disabled={step === 0 || saving}
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-          >
-            <ChevronLeft size={18} /> Atrás
-          </button>
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="text-center mb-2">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 mb-2">
+                <PartyPopper size={26} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Tu clínica está lista</h3>
+              <p className="text-gray-600 text-sm">
+                Estos son buenos primeros pasos. Elige uno para empezar — el resto puedes
+                hacerlo cuando quieras desde el menú lateral.
+              </p>
+            </div>
 
-          <button
-            type="button"
-            className="btn btn-primary gap-2"
-            disabled={saving}
-            onClick={handleSiguiente}
-          >
-            {saving && <span className="loading loading-spinner loading-sm" />}
-            {step < 1 ? (
-              <>Siguiente <ChevronRight size={18} /></>
-            ) : (
-              <>Finalizar <CheckCircle2 size={18} /></>
-            )}
-          </button>
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {ACCIONES_BIENVENIDA.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <button
+                    key={a.ruta}
+                    type="button"
+                    onClick={() => finalizarYAbrir(a.ruta)}
+                    className="text-left bg-white border border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-xl p-4 transition flex gap-3"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Icon size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{a.titulo}</p>
+                      <p className="text-xs text-gray-600">{a.descripcion}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                className="btn btn-ghost gap-2"
+                onClick={() => finalizarYAbrir('/dashboard')}
+              >
+                Ir al Dashboard <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step < 2 && (
+          <div className="flex justify-between mt-8">
+            <button
+              type="button"
+              className="btn btn-ghost gap-2"
+              disabled={step === 0 || saving}
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+            >
+              <ChevronLeft size={18} /> Atrás
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary gap-2"
+              disabled={saving}
+              onClick={handleSiguiente}
+            >
+              {saving && <span className="loading loading-spinner loading-sm" />}
+              Siguiente <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

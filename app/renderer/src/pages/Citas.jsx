@@ -4,8 +4,13 @@ import { getCitas, getCitasPorFecha, addCita, updateCita, deleteCita, verificarD
 import { getPacientes } from '../services/dbService';
 import { getOdontologosActivos } from '../services/dbService';
 import { exportarCitas } from '../utils/excelExporter';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Citas() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [citas, setCitas] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [odontologos, setOdontologos] = useState([]);
@@ -63,7 +68,7 @@ function Citas() {
       setCitas(data);
     } catch (error) {
       console.error('Error al cargar citas:', error);
-      alert('Error al cargar citas');
+      toast.error(humanizeError(error, 'No se pudieron cargar las citas.'));
     } finally {
       setLoading(false);
     }
@@ -82,21 +87,23 @@ function Citas() {
       );
 
       if (!disponibilidad.disponible && !editingId) {
-        alert(`No disponible: ${disponibilidad.razon || 'El horario está ocupado'}`);
+        toast.warning(`No disponible: ${disponibilidad.razon || 'El horario está ocupado'}`);
         return;
       }
 
       if (editingId) {
         await updateCita(editingId, formData);
+        toast.success('Cita actualizada.');
       } else {
         await addCita(formData);
+        toast.success('Cita agendada.');
       }
 
       await loadCitas();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar cita:', error);
-      alert('Error al guardar cita');
+      toast.error(humanizeError(error, 'No se pudo guardar la cita.'));
     }
   };
 
@@ -117,14 +124,24 @@ function Citas() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta cita?')) return;
+    const cita = citas.find(c => c.id === id);
+    const detalle = cita
+      ? `${cita.paciente_nombre || 'Paciente'} — ${cita.fecha} ${cita.hora_inicio}`
+      : 'esta cita';
+    const ok = await confirm({
+      title: 'Eliminar cita',
+      message: `Vas a eliminar la cita de ${detalle}. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteCita(id);
+      toast.success('Cita eliminada.');
       await loadCitas();
     } catch (error) {
       console.error('Error al eliminar cita:', error);
-      alert('Error al eliminar cita');
+      toast.error(humanizeError(error, 'No se pudo eliminar la cita.'));
     }
   };
 
@@ -134,7 +151,7 @@ function Citas() {
       await loadCitas();
     } catch (error) {
       console.error('Error al marcar asistencia:', error);
-      alert('Error al marcar asistencia');
+      toast.error(humanizeError(error, 'No se pudo marcar asistencia.'));
     }
   };
 
@@ -210,9 +227,13 @@ function Citas() {
         {loading ? (
           <div className="text-center py-8">Cargando citas...</div>
         ) : citasOrdenadas.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay citas programadas para esta fecha
-          </div>
+          <EmptyState
+            icon={Calendar}
+            title="Sin citas para esta fecha"
+            description="No hay citas programadas para el día seleccionado. Agenda una nueva o cambia de fecha."
+            actionLabel="Nueva cita"
+            onAction={() => setShowModal(true)}
+          />
         ) : (
           <div className="divide-y divide-gray-200">
             {citasOrdenadas.map((cita) => {

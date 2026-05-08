@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Tag, Ticket, Calendar } from 'lucide-react';
 import { getPromociones, addPromocion, updatePromocion, deletePromocion, getCupones, addCupon, deleteCupon } from '../services/dbService';
 import { getTratamientosActivos } from '../services/dbService';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Promociones() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [promociones, setPromociones] = useState([]);
   const [cupones, setCupones] = useState([]);
   const [tratamientos, setTratamientos] = useState([]);
@@ -75,14 +80,16 @@ function Promociones() {
     try {
       if (editingPromocionId) {
         await updatePromocion(editingPromocionId, promocionData);
+        toast.success('Promoción actualizada.');
       } else {
         await addPromocion(promocionData);
+        toast.success('Promoción creada.');
       }
       await loadPromociones();
       handleClosePromocionModal();
     } catch (error) {
       console.error('Error al guardar promoción:', error);
-      alert('Error al guardar promoción: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo guardar la promoción.'));
     }
   };
 
@@ -90,15 +97,16 @@ function Promociones() {
     e.preventDefault();
     try {
       if (!cuponData.descuento_porcentaje && !cuponData.descuento_fijo) {
-        alert('Debes especificar un descuento (porcentaje o fijo)');
+        toast.warning('Debes especificar un descuento (porcentaje o fijo).');
         return;
       }
       await addCupon(cuponData);
+      toast.success('Cupón creado.');
       await loadCupones();
       handleCloseCuponModal();
     } catch (error) {
       console.error('Error al guardar cupón:', error);
-      alert('Error al guardar cupón: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo guardar el cupón.'));
     }
   };
 
@@ -119,24 +127,40 @@ function Promociones() {
   };
 
   const handleDeletePromocion = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta promoción?')) return;
+    const promo = promociones.find(p => p.id === id);
+    const nombreSeguro = promo?.nombre || 'esta promoción';
+    const ok = await confirm({
+      title: 'Eliminar promoción',
+      message: `Vas a eliminar "${nombreSeguro}". Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deletePromocion(id);
+      toast.success('Promoción eliminada.');
       await loadPromociones();
     } catch (error) {
       console.error('Error al eliminar promoción:', error);
-      alert('Error al eliminar promoción');
+      toast.error(humanizeError(error, 'No se pudo eliminar la promoción.'));
     }
   };
 
   const handleDeleteCupon = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este cupón?')) return;
+    const cupon = cupones.find(c => c.id === id);
+    const detalle = cupon?.codigo ? `el cupón "${cupon.codigo}"` : 'este cupón';
+    const ok = await confirm({
+      title: 'Eliminar cupón',
+      message: `Vas a eliminar ${detalle}. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deleteCupon(id);
+      toast.success('Cupón eliminado.');
       await loadCupones();
     } catch (error) {
       console.error('Error al eliminar cupón:', error);
-      alert('Error al eliminar cupón');
+      toast.error(humanizeError(error, 'No se pudo eliminar el cupón.'));
     }
   };
 
@@ -247,9 +271,13 @@ function Promociones() {
           {loading ? (
             <div className="text-center py-8">Cargando promociones...</div>
           ) : filteredPromociones.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No hay promociones registradas
-            </div>
+            <EmptyState
+              icon={Tag}
+              title="Aún no hay promociones"
+              description="Crea promociones por porcentaje, monto fijo o paquetes para impulsar tratamientos."
+              actionLabel="Nueva promoción"
+              onAction={() => setShowPromocionModal(true)}
+            />
           ) : (
             <div className="divide-y divide-gray-200">
               {filteredPromociones.map((prom) => {
@@ -316,9 +344,13 @@ function Promociones() {
           {loading ? (
             <div className="text-center py-8">Cargando cupones...</div>
           ) : filteredCupones.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No hay cupones registrados
-            </div>
+            <EmptyState
+              icon={Ticket}
+              title="Aún no hay cupones"
+              description="Genera códigos de descuento para campañas o referidos."
+              actionLabel="Nuevo cupón"
+              onAction={() => setShowCuponModal(true)}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="table w-full">

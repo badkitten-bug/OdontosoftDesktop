@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
+import { UIProvider } from './context/UIContext';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -12,7 +13,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         v7_relativeSplatPath: true,
       }}
     >
-      <App />
+      <UIProvider>
+        <App />
+      </UIProvider>
     </HashRouter>
   </React.StrictMode>
 );

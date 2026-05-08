@@ -3,6 +3,8 @@ import { Plus, Edit, Trash2, Eye, Save, GitBranch, X } from 'lucide-react';
 import DraggableFieldList from '../components/DraggableFieldList';
 import FormPreview from '../components/FormPreview';
 import IconSelector from '../components/IconSelector';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 import {
   getCamposDinamicos,
   addCampoDinamico,
@@ -20,6 +22,8 @@ import {
 } from '../services/dbService';
 
 function Configuracion() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('campos'); // 'campos' o 'relaciones'
   const [campos, setCampos] = useState([]);
   const [relaciones, setRelaciones] = useState([]);
@@ -129,7 +133,7 @@ function Configuracion() {
       setCampos(camposOrdenados);
     } catch (error) {
       console.error('Error al cargar campos:', error);
-      alert('Error al cargar campos dinámicos');
+      toast.error(humanizeError(error, 'No se pudieron cargar los campos dinámicos.'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +146,7 @@ function Configuracion() {
       setRelaciones(data);
     } catch (error) {
       console.error('Error al cargar relaciones:', error);
-      alert('Error al cargar relaciones');
+      toast.error(humanizeError(error, 'No se pudieron cargar las relaciones.'));
     } finally {
       setLoading(false);
     }
@@ -163,7 +167,7 @@ function Configuracion() {
       await updateOrdenCampos(nuevosCampos);
     } catch (error) {
       console.error('Error al reordenar campos:', error);
-      alert('Error al guardar el nuevo orden');
+      toast.error(humanizeError(error, 'No se pudo guardar el nuevo orden.'));
       // Recargar campos en caso de error
       await loadCampos();
     }
@@ -186,7 +190,7 @@ function Configuracion() {
       if (formData.tipo === 'select') {
         const opcionesFiltradas = opcionesArray.filter(op => op.trim() !== '');
         if (opcionesFiltradas.length === 0) {
-          alert('Debes agregar al menos una opción para el selector');
+          toast.warning('Debes agregar al menos una opción para el selector.');
           return;
         }
         dataToSave.opciones = JSON.stringify(opcionesFiltradas);
@@ -207,7 +211,7 @@ function Configuracion() {
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar campo:', error);
-      alert('Error al guardar campo dinámico');
+      toast.error(humanizeError(error, 'No se pudo guardar el campo dinámico.'));
     }
   };
 
@@ -225,7 +229,7 @@ function Configuracion() {
       handleCloseModalRelacion();
     } catch (error) {
       console.error('Error al guardar relación:', error);
-      alert('Error al guardar relación');
+      toast.error(humanizeError(error, 'No se pudo guardar la relación.'));
     }
   };
 
@@ -278,26 +282,40 @@ function Configuracion() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este campo? Los datos guardados no se eliminarán.')) return;
+    const ok = await confirm({
+      title: 'Eliminar campo dinámico',
+      message:
+        'Vas a eliminar este campo de la configuración. Los datos guardados en registros existentes ' +
+        'no se eliminan, pero el campo deja de mostrarse en formularios.',
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteCampoDinamico(id);
+      toast.success('Campo eliminado.');
       await loadCampos();
     } catch (error) {
       console.error('Error al eliminar campo:', error);
-      alert('Error al eliminar campo dinámico');
+      toast.error(humanizeError(error, 'No se pudo eliminar el campo.'));
     }
   };
 
   const handleDeleteRelacion = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta relación?')) return;
+    const ok = await confirm({
+      title: 'Eliminar relación',
+      message: 'Vas a eliminar esta relación entre entidades. Esta acción no se puede deshacer.',
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteRelacion(id);
+      toast.success('Relación eliminada.');
       await loadRelaciones();
     } catch (error) {
       console.error('Error al eliminar relación:', error);
-      alert('Error al eliminar relación');
+      toast.error(humanizeError(error, 'No se pudo eliminar la relación.'));
     }
   };
 

@@ -4,8 +4,12 @@ import { getPlanesPaciente, getPlan, addPlanTratamiento, updatePlanTratamiento, 
 import { getPacientes } from '../services/dbService';
 import { getTratamientosActivos } from '../services/dbService';
 import { getCitas } from '../services/dbService';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function PlanesTratamiento() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [planes, setPlanes] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [tratamientos, setTratamientos] = useState([]);
@@ -104,14 +108,16 @@ function PlanesTratamiento() {
     try {
       if (editingId) {
         await updatePlanTratamiento(editingId, formData);
+        toast.success('Plan actualizado.');
       } else {
         await addPlanTratamiento(formData);
+        toast.success('Plan creado.');
       }
       await loadPlanes();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar plan:', error);
-      alert('Error al guardar plan de tratamiento');
+      toast.error(humanizeError(error, 'No se pudo guardar el plan.'));
     }
   };
 
@@ -130,13 +136,21 @@ function PlanesTratamiento() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este plan de tratamiento?')) return;
+    const plan = planes.find(p => p.id === id);
+    const nombreSeguro = plan?.nombre || 'este plan';
+    const ok = await confirm({
+      title: 'Eliminar plan de tratamiento',
+      message: `Vas a eliminar "${nombreSeguro}". Las citas vinculadas se desvincularán del plan. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deletePlanTratamiento(id);
+      toast.success('Plan eliminado.');
       await loadPlanes();
     } catch (error) {
       console.error('Error al eliminar plan:', error);
-      alert('Error al eliminar plan de tratamiento');
+      toast.error(humanizeError(error, 'No se pudo eliminar el plan.'));
     }
   };
 
@@ -158,7 +172,7 @@ function PlanesTratamiento() {
       await loadCitasDisponibles();
     } catch (error) {
       console.error('Error al agregar cita al plan:', error);
-      alert('Error al agregar cita al plan');
+      toast.error(humanizeError(error, 'No se pudo agregar la cita al plan.'));
     }
   };
 
@@ -168,7 +182,7 @@ function PlanesTratamiento() {
       await loadPlanCompleto();
     } catch (error) {
       console.error('Error al marcar cita como completada:', error);
-      alert('Error al marcar cita como completada');
+      toast.error(humanizeError(error, 'No se pudo marcar la cita como completada.'));
     }
   };
 

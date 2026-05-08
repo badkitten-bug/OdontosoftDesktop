@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, UserCog } from 'lucide-react';
 import DynamicForm from '../components/DynamicForm';
+import EmptyState from '../components/EmptyState';
 import { getOdontologos, addOdontologo, updateOdontologo, deleteOdontologo } from '../services/dbService';
 import { Link } from 'react-router-dom';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Odontologos() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [odontologos, setOdontologos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -41,7 +46,7 @@ function Odontologos() {
       setOdontologos(data);
     } catch (error) {
       console.error('Error al cargar odontólogos:', error);
-      alert('Error al cargar odontólogos');
+      toast.error(humanizeError(error, 'No se pudieron cargar los odontólogos.'));
     } finally {
       setLoading(false);
     }
@@ -76,15 +81,17 @@ function Odontologos() {
 
       if (editingId) {
         await updateOdontologo(editingId, odontologoData);
+        toast.success('Odontólogo actualizado.');
       } else {
         await addOdontologo(odontologoData);
+        toast.success('Odontólogo registrado.');
       }
 
       await loadOdontologos();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar odontólogo:', error);
-      alert('Error al guardar odontólogo');
+      toast.error(humanizeError(error, 'No se pudo guardar el odontólogo.'));
     }
   };
 
@@ -104,14 +111,24 @@ function Odontologos() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este odontólogo?')) return;
+    const odontologo = odontologos.find(o => o.id === id);
+    const nombreSeguro = odontologo?.nombre || 'este odontólogo';
+    const ok = await confirm({
+      title: 'Eliminar odontólogo',
+      message:
+        `Vas a eliminar a "${nombreSeguro}". Esto también eliminará sus horarios y citas asociadas. ` +
+        `Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteOdontologo(id);
+      toast.success('Odontólogo eliminado.');
       await loadOdontologos();
     } catch (error) {
       console.error('Error al eliminar odontólogo:', error);
-      alert('Error al eliminar odontólogo');
+      toast.error(humanizeError(error, 'No se pudo eliminar el odontólogo.'));
     }
   };
 
@@ -168,9 +185,13 @@ function Odontologos() {
         {loading ? (
           <div className="text-center py-8">Cargando odontólogos...</div>
         ) : filteredOdontologos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay odontólogos registrados
-          </div>
+          <EmptyState
+            icon={UserCog}
+            title="Aún no hay odontólogos"
+            description="Registra a tu primer odontólogo. Después podrás definir sus horarios y agendar citas."
+            actionLabel="Registrar odontólogo"
+            onAction={() => setShowModal(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

@@ -6,6 +6,9 @@ import { generarPDFFactura } from '../utils/pdfGenerator';
 import { exportarFacturas } from '../utils/excelExporter';
 import { formatMoneda, formatFecha, getIgvPorcentaje, getMonedaSimbolo } from '../utils/formatters';
 import { validarDNI, validarRUC } from '../utils/identidad';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 const ESTADO_FACTURA_INICIAL = {
   id_paciente: '',
@@ -22,6 +25,8 @@ const ESTADO_FACTURA_INICIAL = {
 };
 
 function Facturacion() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [facturas, setFacturas] = useState([]);
   const [citas, setCitas] = useState([]);
   const [pacientes, setPacientes] = useState([]);
@@ -62,7 +67,7 @@ function Facturacion() {
       setFacturas(data);
     } catch (error) {
       console.error('Error al cargar facturas:', error);
-      alert('Error al cargar facturas');
+      toast.error(humanizeError(error, 'No se pudieron cargar los comprobantes.'));
     } finally {
       setLoading(false);
     }
@@ -91,10 +96,10 @@ function Facturacion() {
       await crearFacturaDesdeCita(idCita);
       await loadFacturas();
       setShowModalFactura(false);
-      alert('Factura creada exitosamente');
+      toast.success('Factura creada exitosamente.');
     } catch (error) {
       console.error('Error al crear factura:', error);
-      alert('Error al crear factura');
+      toast.error(humanizeError(error, 'No se pudo crear la factura.'));
     }
   };
 
@@ -102,27 +107,26 @@ function Facturacion() {
     e.preventDefault();
 
     if (!formDataFactura.id_paciente) {
-      alert('Por favor selecciona un paciente');
+      toast.warning('Selecciona un paciente.');
       return;
     }
 
     if (!formDataFactura.subtotal || parseFloat(formDataFactura.subtotal) <= 0) {
-      alert('El subtotal debe ser mayor a 0');
+      toast.warning('El subtotal debe ser mayor a 0.');
       return;
     }
 
-    // Validaciones de cliente según tipo de comprobante
     if (formDataFactura.tipo_comprobante === 'factura') {
       const v = validarRUC(formDataFactura.cliente_ruc);
-      if (!v.ok) { alert(`RUC: ${v.error}`); return; }
+      if (!v.ok) { toast.warning(`RUC: ${v.error}`); return; }
       if (!formDataFactura.cliente_razon_social.trim()) {
-        alert('La razón social es obligatoria para emitir una factura');
+        toast.warning('La razón social es obligatoria para emitir una factura.');
         return;
       }
     }
     if (formDataFactura.tipo_comprobante === 'boleta' && formDataFactura.cliente_dni) {
       const v = validarDNI(formDataFactura.cliente_dni);
-      if (!v.ok) { alert(`DNI: ${v.error}`); return; }
+      if (!v.ok) { toast.warning(`DNI: ${v.error}`); return; }
     }
 
     try {
@@ -144,10 +148,10 @@ function Facturacion() {
       await loadFacturas();
       setShowModalFacturaDirecta(false);
       setFormDataFactura(ESTADO_FACTURA_INICIAL);
-      alert('Comprobante creado correctamente');
+      toast.success('Comprobante creado correctamente.');
     } catch (error) {
       console.error('Error al crear factura:', error);
-      alert(`Error al crear comprobante: ${error.message || error}`);
+      toast.error(humanizeError(error, 'No se pudo crear el comprobante.'));
     }
   };
 
@@ -166,7 +170,7 @@ function Facturacion() {
       setShowModalPago(true);
     } catch (error) {
       console.error('Error al cargar pagos:', error);
-      alert('Error al cargar pagos');
+      toast.error(humanizeError(error, 'No se pudieron cargar los pagos.'));
     }
   };
 
@@ -175,7 +179,7 @@ function Facturacion() {
     
     // Validar monto
     if (!formDataPago.monto || parseFloat(formDataPago.monto) <= 0) {
-      alert('El monto debe ser mayor a 0');
+      toast.warning('El monto debe ser mayor a 0.');
       return;
     }
     
@@ -189,7 +193,7 @@ function Facturacion() {
           referencia: formDataPago.referencia || null,
           observaciones: formDataPago.observaciones || null,
         });
-        alert('Pago actualizado exitosamente');
+        toast.success('Pago actualizado exitosamente.');
       } else {
         // Agregar nuevo pago
         await addPago({
@@ -200,7 +204,7 @@ function Facturacion() {
           referencia: formDataPago.referencia || null,
           observaciones: formDataPago.observaciones || null,
         });
-        alert('Pago agregado exitosamente');
+        toast.success('Pago agregado exitosamente.');
       }
       // Refrescar facturas y pagos de la factura seleccionada
       await loadFacturas();
@@ -219,7 +223,7 @@ function Facturacion() {
       setPagoEditando(null);
     } catch (error) {
       console.error('Error al guardar pago:', error);
-      alert(`Error al ${pagoEditando ? 'actualizar' : 'agregar'} pago: ${error.message || error}`);
+      toast.error(humanizeError(error, `No se pudo ${pagoEditando ? 'actualizar' : 'agregar'} el pago.`));
     }
   };
 
@@ -239,18 +243,23 @@ function Facturacion() {
   };
 
   const handleEliminarPago = async (pago) => {
-    if (!confirm(`¿Estás seguro de eliminar el pago de ${formatMoneda(pago.monto)}?`)) {
+    const ok = await confirm({
+      title: 'Eliminar pago',
+      message: `Vas a eliminar el pago de ${formatMoneda(pago.monto)}. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) {
       return;
     }
 
     try {
       await deletePago(pago.id);
-      alert('Pago eliminado exitosamente');
+      toast.success('Pago eliminado exitosamente.');
       await loadFacturas();
       await handleVerPagos(facturaSeleccionada);
     } catch (error) {
       console.error('Error al eliminar pago:', error);
-      alert(`Error al eliminar pago: ${error.message || error}`);
+      toast.error(humanizeError(error, 'No se pudo eliminar el pago.'));
     }
   };
 
@@ -304,7 +313,7 @@ function Facturacion() {
       doc.save(`Factura_${factura.numero}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al generar PDF:', error);
-      alert('Error al generar el PDF de la factura');
+      toast.error(humanizeError(error, 'No se pudo generar el PDF de la factura.'));
     }
   };
 
@@ -351,9 +360,13 @@ function Facturacion() {
         {loading ? (
           <div className="text-center py-8">Cargando facturas...</div>
         ) : filteredFacturas.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay facturas registradas
-          </div>
+          <EmptyState
+            icon={Receipt}
+            title="Aún no hay comprobantes"
+            description="Cuando emitas tu primera boleta o factura, aparecerá aquí. Puedes crearla desde una cita completada o emitirla directo."
+            actionLabel="Nuevo comprobante"
+            onAction={() => setShowModalFacturaDirecta(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

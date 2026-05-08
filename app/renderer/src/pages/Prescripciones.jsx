@@ -5,8 +5,12 @@ import { getPacientes, getPaciente } from '../services/dbService';
 import { getOdontologosActivos, getOdontologo } from '../services/dbService';
 import { getCitas } from '../services/dbService';
 import { generarPDFPrescripcion } from '../utils/pdfGenerator';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Prescripciones() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [prescripciones, setPrescripciones] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [odontologos, setOdontologos] = useState([]);
@@ -84,7 +88,7 @@ function Prescripciones() {
     try {
       const medicamentosFiltrados = medicamentos.filter(m => m.nombre.trim() !== '');
       if (medicamentosFiltrados.length === 0) {
-        alert('Debes agregar al menos un medicamento');
+        toast.warning('Debes agregar al menos un medicamento.');
         return;
       }
 
@@ -95,14 +99,16 @@ function Prescripciones() {
 
       if (editingId) {
         await updatePrescripcion(editingId, dataToSave);
+        toast.success('Prescripción actualizada.');
       } else {
         await addPrescripcion(dataToSave);
+        toast.success('Prescripción creada.');
       }
       await loadPrescripciones();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar prescripción:', error);
-      alert('Error al guardar prescripción');
+      toast.error(humanizeError(error, 'No se pudo guardar la prescripción.'));
     }
   };
 
@@ -129,13 +135,19 @@ function Prescripciones() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta prescripción?')) return;
+    const ok = await confirm({
+      title: 'Eliminar prescripción',
+      message: 'Vas a eliminar esta prescripción. Esta acción no se puede deshacer.',
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deletePrescripcion(id);
+      toast.success('Prescripción eliminada.');
       await loadPrescripciones();
     } catch (error) {
       console.error('Error al eliminar prescripción:', error);
-      alert('Error al eliminar prescripción');
+      toast.error(humanizeError(error, 'No se pudo eliminar la prescripción.'));
     }
   };
 

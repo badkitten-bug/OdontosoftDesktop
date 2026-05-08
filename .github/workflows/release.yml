@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"   # Cualquier tag que empiece con v (ej: v1.0.0, v1.1.2)
+
+# Permisos para que electron-builder pueda crear el release y subir assets.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Por ahora sólo Windows: tu mercado principal está en Windows.
+        # Para activar macOS/Linux, agrega macos-latest y/o ubuntu-latest aquí.
+        os: [windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node (necesario para node-gyp / electron-rebuild)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install root dependencies
+        run: bun install
+
+      - name: Install main + renderer dependencies
+        run: |
+          cd app/main && bun install
+          cd ../renderer && bun install
+
+      - name: Build renderer
+        run: bun run build:renderer
+
+      - name: Rebuild native modules for Electron
+        working-directory: app/main
+        run: bunx electron-rebuild -f -w better-sqlite3
+        shell: bash
+
+      # IMPORTANTE: para firmar el .exe necesitas dos secrets en el repo
+      # (Settings → Secrets and variables → Actions):
+      #   CSC_LINK            → contenido del .pfx en base64 (data URI)
+      #   CSC_KEY_PASSWORD    → contraseña del .pfx
+      # Si no están configurados, el build sigue pero el .exe no estará firmado.
+      - name: Build & Publish (electron-builder)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Notarization de macOS (sólo si activas macOS en la matrix)
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bunx electron-builder --publish always

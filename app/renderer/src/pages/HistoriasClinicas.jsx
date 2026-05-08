@@ -7,8 +7,12 @@ import { getArchivosHistorial, addArchivoHistorial, deleteArchivoHistorial, getR
 import { generarPDFHistoriaClinica } from '../utils/pdfGenerator';
 import Odontograma from '../components/Odontograma';
 import DynamicForm from '../components/DynamicForm';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function HistoriasClinicas() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [pacientes, setPacientes] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
@@ -72,7 +76,7 @@ function HistoriasClinicas() {
       setPacientes(data);
     } catch (error) {
       console.error('Error al cargar pacientes:', error);
-      alert('Error al cargar pacientes');
+      toast.error(humanizeError(error, 'No se pudieron cargar los pacientes.'));
     } finally {
       setLoading(false);
     }
@@ -85,7 +89,7 @@ function HistoriasClinicas() {
       setHistorial(data);
     } catch (error) {
       console.error('Error al cargar historial:', error);
-      alert('Error al cargar historial');
+      toast.error(humanizeError(error, 'No se pudo cargar el historial.'));
     } finally {
       setLoading(false);
     }
@@ -105,7 +109,7 @@ function HistoriasClinicas() {
     e.preventDefault();
     
     if (!selectedPaciente) {
-      alert('Por favor selecciona un paciente');
+      toast.warning('Selecciona un paciente.');
       return;
     }
 
@@ -123,23 +127,31 @@ function HistoriasClinicas() {
       
       // Mostrar mensaje para subir archivos después
       if (archivos.length > 0) {
-        alert('Historial guardado. Puedes agregar archivos desde la vista completa de la entrada.');
+        toast.success('Historial guardado. Puedes agregar archivos desde la vista completa.');
       }
     } catch (error) {
       console.error('Error al guardar historial:', error);
-      alert('Error al guardar historial');
+      toast.error(humanizeError(error, 'No se pudo guardar el historial.'));
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta entrada del historial?')) return;
+    const ok = await confirm({
+      title: 'Eliminar entrada',
+      message:
+        'Vas a eliminar esta entrada del historial. También se borrarán los archivos adjuntos relacionados. ' +
+        'Esta acción no se puede deshacer.',
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteHistorial(id);
+      toast.success('Entrada eliminada.');
       await loadHistorial(selectedPaciente);
     } catch (error) {
       console.error('Error al eliminar historial:', error);
-      alert('Error al eliminar historial');
+      toast.error(humanizeError(error, 'No se pudo eliminar la entrada.'));
     }
   };
 
@@ -185,7 +197,7 @@ function HistoriasClinicas() {
       doc.save(`HistoriaClinica_${paciente?.nombre || 'N/A'}_${new Date(entrada.fecha).toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al generar PDF:', error);
-      alert('Error al generar el PDF de la historia clínica');
+      toast.error(humanizeError(error, 'No se pudo generar el PDF.'));
     }
   };
 
@@ -221,7 +233,7 @@ function HistoriasClinicas() {
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error al subir archivo:', error);
-      alert('Error al subir archivo: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo subir el archivo.'));
       setSubiendoArchivo(false);
     }
   };
@@ -236,9 +248,17 @@ function HistoriasClinicas() {
   };
 
   const handleDeleteArchivo = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este archivo?')) return;
+    const archivo = archivos.find(a => a.id === id) || archivosViewing.find(a => a.id === id);
+    const detalle = archivo?.nombre_archivo || 'este archivo';
+    const ok = await confirm({
+      title: 'Eliminar archivo',
+      message: `Vas a eliminar "${detalle}". El archivo se borra del disco. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deleteArchivoHistorial(id);
+      toast.success('Archivo eliminado.');
       if (viewingEntrada) {
         await loadArchivos(viewingEntrada.id);
         const archs = await getArchivosHistorial(viewingEntrada.id);
@@ -246,7 +266,7 @@ function HistoriasClinicas() {
       }
     } catch (error) {
       console.error('Error al eliminar archivo:', error);
-      alert('Error al eliminar archivo');
+      toast.error(humanizeError(error, 'No se pudo eliminar el archivo.'));
     }
   };
 
@@ -264,7 +284,7 @@ function HistoriasClinicas() {
       }
     } catch (error) {
       console.error('Error al abrir archivo:', error);
-      alert('Error al abrir archivo');
+      toast.error(humanizeError(error, 'No se pudo abrir el archivo.'));
     }
   };
 

@@ -1,6 +1,6 @@
 appId: com.odontosoft.desktop
 productName: OdontoSoft Desktop
-copyright: Copyright © 2024 OdontoSoft
+copyright: Copyright © 2026 OdontoSoft
 
 directories:
   buildResources: build
@@ -11,17 +11,33 @@ files:
   - app/renderer/dist/**/*
   - node_modules/**/*
   - package.json
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,*.test.*,test/**}"
+  - "!**/node_modules/*/{.bin,.github,docs,example,examples,docs}"
+  - "!**/{.gitignore,.eslintrc*,.prettierrc*,*.tsbuildinfo}"
+  - "!**/secrets/**"
+  - "!**/scripts/**"
 
 asarUnpack:
   - "**/node_modules/better-sqlite3/**/*"
 
+# Windows
+# Code signing:
+#   Para firmar el .exe (recomendado para evitar la alerta de SmartScreen),
+#   define las variables de entorno antes de correr `bun run make`:
+#     CSC_LINK = ruta o data:URI del .pfx
+#     CSC_KEY_PASSWORD = contraseña del .pfx
+#   Más detalles en OPERACION.md.
 win:
   target:
     - target: nsis
       arch:
         - x64
   icon: build/icon.ico
+  artifactName: "OdontoSoft-Setup-${version}.${ext}"
+  publisherName: OdontoSoft
+  verifyUpdateCodeSignature: false   # poner en true cuando ya estés firmando
 
+# macOS
 mac:
   target:
     - target: dmg
@@ -29,17 +45,33 @@ mac:
         - x64
         - arm64
   icon: build/icon.icns
+  artifactName: "OdontoSoft-${version}-${arch}.${ext}"
+  category: public.app-category.medical
+  hardenedRuntime: true              # requerido para notarization
+  gatekeeperAssess: false
 
+# Linux
 linux:
   target:
     - target: AppImage
       arch:
         - x64
   icon: build/icon.png
+  category: Office
+  artifactName: "OdontoSoft-${version}-${arch}.${ext}"
 
+# Configuración del instalador NSIS (Windows)
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  perMachine: false                   # instalación por usuario, sin pedir admin
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: OdontoSoft
+  license: build/license_es.txt
+  installerLanguages:
+    - es_ES
+  language: "1034"                    # español tradicional/internacional
 
 # electron-updater leerá esto para saber dónde buscar nuevas versiones.
 # Reemplaza `owner` con tu user/org real cuando crees el repo en GitHub.
@@ -48,4 +80,3 @@ publish:
     owner: odontosoft
     repo: desktop
     releaseType: release
-

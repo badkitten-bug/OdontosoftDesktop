@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Pacientes from '../../pages/Pacientes';
 import { UserProvider } from '../../context/UserContext';
+import { UIProvider } from '../../context/UIContext';
 import * as dbService from '../../services/dbService';
 
 jest.mock('../../services/dbService', () => ({
@@ -20,9 +21,11 @@ jest.mock('../../services/dbService', () => ({
 const renderWithProviders = (ui) => {
   return render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <UserProvider>
-        {ui}
-      </UserProvider>
+      <UIProvider>
+        <UserProvider>
+          {ui}
+        </UserProvider>
+      </UIProvider>
     </BrowserRouter>
   );
 };

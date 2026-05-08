@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Pacientes from '../pages/Pacientes';
 import { UserProvider } from '../context/UserContext';
+import { UIProvider } from '../context/UIContext';
 import * as dbService from '../services/dbService';
 
 // Mock de los servicios
@@ -23,9 +24,11 @@ const mockPacientes = [
 const renderWithProviders = (ui) => {
   return render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <UserProvider>
-        {ui}
-      </UserProvider>
+      <UIProvider>
+        <UserProvider>
+          {ui}
+        </UserProvider>
+      </UIProvider>
     </BrowserRouter>
   );
 };
@@ -83,7 +86,7 @@ describe('Pacientes Component', () => {
     renderWithProviders(<Pacientes />);
     
     await waitFor(() => {
-      expect(screen.getByText(/no hay pacientes registrados/i)).toBeInTheDocument();
+      expect(screen.getByText(/aún no tienes pacientes/i)).toBeInTheDocument();
     });
   });
 });

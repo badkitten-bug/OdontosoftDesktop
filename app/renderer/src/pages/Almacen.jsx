@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Package, TrendingUp, TrendingDown, AlertCircle, Download } from 'lucide-react';
 import { getProductos, addProducto, updateProducto, deleteProducto, getMovimientosProducto, addMovimientoInventario, getProductosStockBajo } from '../services/dbService';
 import { exportarProductos } from '../utils/excelExporter';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Almacen() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -36,7 +41,7 @@ function Almacen() {
       setProductos(data);
     } catch (error) {
       console.error('Error al cargar productos:', error);
-      alert('Error al cargar productos');
+      toast.error(humanizeError(error, 'No se pudieron cargar los productos.'));
     } finally {
       setLoading(false);
     }
@@ -48,15 +53,17 @@ function Almacen() {
     try {
       if (editingId) {
         await updateProducto(editingId, formData);
+        toast.success('Producto actualizado.');
       } else {
         await addProducto(formData);
+        toast.success('Producto registrado.');
       }
 
       await loadProductos();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar producto:', error);
-      alert('Error al guardar producto');
+      toast.error(humanizeError(error, 'No se pudo guardar el producto.'));
     }
   };
 
@@ -96,21 +103,30 @@ function Almacen() {
       await loadProductos();
       await handleAbrirMovimiento(productoSeleccionado);
       setMovimientoData({ tipo: 'entrada', cantidad: 0, motivo: '' });
+      toast.success('Movimiento registrado.');
     } catch (error) {
       console.error('Error al agregar movimiento:', error);
-      alert('Error al agregar movimiento: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo agregar el movimiento.'));
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+    const producto = productos.find(p => p.id === id);
+    const nombreSeguro = producto?.nombre || 'este producto';
+    const ok = await confirm({
+      title: 'Eliminar producto',
+      message: `Vas a eliminar "${nombreSeguro}" del inventario. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteProducto(id);
+      toast.success('Producto eliminado.');
       await loadProductos();
     } catch (error) {
       console.error('Error al eliminar producto:', error);
-      alert('Error al eliminar producto');
+      toast.error(humanizeError(error, 'No se pudo eliminar el producto.'));
     }
   };
 
@@ -181,9 +197,13 @@ function Almacen() {
         {loading ? (
           <div className="text-center py-8">Cargando productos...</div>
         ) : filteredProductos.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay productos registrados
-          </div>
+          <EmptyState
+            icon={Package}
+            title="Aún no tienes productos en almacén"
+            description="Registra tus insumos y materiales. El sistema te avisará cuando el stock baje."
+            actionLabel="Agregar primer producto"
+            onAction={() => setShowModal(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

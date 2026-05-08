@@ -3,6 +3,8 @@ import { Plus, Edit, Trash2, Calendar } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { getOdontologosActivos } from '../services/dbService';
 import { getHorarios, addHorario, updateHorario, deleteHorario } from '../services/dbService';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 const diasSemana = [
   { value: 0, label: 'Domingo' },
@@ -15,6 +17,8 @@ const diasSemana = [
 ];
 
 function Horarios() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const odontologoIdParam = searchParams.get('odontologo');
 
@@ -62,7 +66,7 @@ function Horarios() {
       setHorarios(data);
     } catch (error) {
       console.error('Error al cargar horarios:', error);
-      alert('Error al cargar horarios');
+      toast.error(humanizeError(error, 'No se pudieron cargar los horarios.'));
     } finally {
       setLoading(false);
     }
@@ -74,15 +78,17 @@ function Horarios() {
     try {
       if (editingId) {
         await updateHorario(editingId, formData);
+        toast.success('Horario actualizado.');
       } else {
         await addHorario(formData);
+        toast.success('Horario agregado.');
       }
 
       await loadHorarios();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar horario:', error);
-      alert('Error al guardar horario');
+      toast.error(humanizeError(error, 'No se pudo guardar el horario.'));
     }
   };
 
@@ -99,14 +105,20 @@ function Horarios() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este horario?')) return;
+    const ok = await confirm({
+      title: 'Eliminar horario',
+      message: 'Vas a eliminar este horario de disponibilidad. Esta acción no se puede deshacer.',
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
 
     try {
       await deleteHorario(id);
+      toast.success('Horario eliminado.');
       await loadHorarios();
     } catch (error) {
       console.error('Error al eliminar horario:', error);
-      alert('Error al eliminar horario');
+      toast.error(humanizeError(error, 'No se pudo eliminar el horario.'));
     }
   };
 

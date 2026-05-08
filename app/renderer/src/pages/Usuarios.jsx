@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, User, Lock, Shield } from 'lucide-react';
 import { getUsuarios, addUsuario, updateUsuario, deleteUsuario } from '../services/dbService';
 import { getOdontologos } from '../services/dbService';
+import EmptyState from '../components/EmptyState';
+import { humanizeError } from '../utils/humanizeError';
+import { useConfirm, useToast } from '../context/UIContext';
 
 function Usuarios() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [usuarios, setUsuarios] = useState([]);
   const [odontologos, setOdontologos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +36,7 @@ function Usuarios() {
       setUsuarios(data);
     } catch (error) {
       console.error('Error al cargar usuarios:', error);
-      alert('Error al cargar usuarios');
+      toast.error(humanizeError(error, 'No se pudieron cargar los usuarios.'));
     } finally {
       setLoading(false);
     }
@@ -51,18 +56,20 @@ function Usuarios() {
     try {
       if (editingId) {
         await updateUsuario(editingId, formData);
+        toast.success('Usuario actualizado.');
       } else {
         if (!formData.password) {
-          alert('La contraseña es requerida para nuevos usuarios');
+          toast.warning('La contraseña es obligatoria para nuevos usuarios.');
           return;
         }
         await addUsuario(formData);
+        toast.success('Usuario creado.');
       }
       await loadUsuarios();
       handleCloseModal();
     } catch (error) {
       console.error('Error al guardar usuario:', error);
-      alert('Error al guardar usuario: ' + (error.message || 'Error desconocido'));
+      toast.error(humanizeError(error, 'No se pudo guardar el usuario.'));
     }
   };
 
@@ -80,13 +87,21 @@ function Usuarios() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+    const usuario = usuarios.find(u => u.id === id);
+    const detalle = usuario ? `${usuario.nombre} (${usuario.username})` : 'este usuario';
+    const ok = await confirm({
+      title: 'Eliminar usuario',
+      message: `Vas a eliminar a ${detalle}. Ya no podrá iniciar sesión. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Sí, eliminar',
+    });
+    if (!ok) return;
     try {
       await deleteUsuario(id);
+      toast.success('Usuario eliminado.');
       await loadUsuarios();
     } catch (error) {
       console.error('Error al eliminar usuario:', error);
-      alert('Error al eliminar usuario');
+      toast.error(humanizeError(error, 'No se pudo eliminar el usuario.'));
     }
   };
 
@@ -168,9 +183,13 @@ function Usuarios() {
         {loading ? (
           <div className="text-center py-8">Cargando usuarios...</div>
         ) : filteredUsuarios.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay usuarios registrados
-          </div>
+          <EmptyState
+            icon={Shield}
+            title="Solo está tu usuario administrador"
+            description="Crea cuentas para tu equipo (recepcionistas, odontólogos) con permisos según su rol."
+            actionLabel="Crear nuevo usuario"
+            onAction={() => setShowModal(true)}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table w-full">

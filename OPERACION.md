@@ -112,23 +112,84 @@ node scripts/generarLicencia.js --fingerprint=... --tipo=pro --email=... --expir
 A partir de ahí, `https://github.com/odontosoft/desktop/releases/latest` apunta a
 ese release, y el botón "Descargar prueba gratis" de la landing lo encuentra solo.
 
-### Automatizar (opcional, después)
+### Automatizar con GitHub Actions (recomendado)
 
-Cuando esto se vuelva manual y tedioso, montas un workflow GitHub Actions que en
-cada push de tag corra `bun run make` y suba los artefactos automáticamente. No
-es prioridad para los primeros 10 clientes.
+El repo ya incluye `.github/workflows/release.yml`. Funciona así:
+
+1. Bumpea versión en `package.json` y commitea.
+2. Crea y empuja un tag:
+   ```bash
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+3. El workflow se dispara solo: corre `bun install`, build, electron-rebuild, y
+   `electron-builder --publish always`. Esto crea el release de GitHub y sube el
+   `.exe` automáticamente.
+
+Por defecto la matrix sólo construye **Windows**. Para sumar macOS/Linux, edita
+`.github/workflows/release.yml` y agrega `macos-latest` / `ubuntu-latest` a la
+sección `strategy.matrix.os`.
 
 ---
 
-## 4. Checklist antes de publicar v1.0.0
+## 4. Code signing del `.exe` (Windows)
+
+Sin firmar, el primer cliente que descargue el `.exe` verá la alerta roja de
+SmartScreen ("Windows protegió su PC"), lo que tira la conversión casi a 0.
+
+### Comprar un certificado
+
+- **Sectigo Code Signing** (más barato, ~$70-100/año) o **DigiCert** (~$300/año).
+- Pide el certificado **a tu nombre o de tu empresa**.
+- Tras la verificación de identidad (puede tomar 1-3 días), recibes un archivo
+  `.pfx` con contraseña.
+
+### Configurar firma local (build manual)
+
+```bash
+# En PowerShell:
+$env:CSC_LINK = "C:\ruta\a\tu-certificado.pfx"
+$env:CSC_KEY_PASSWORD = "tu-contraseña"
+bun run make
+```
+
+El `.exe` resultante en `dist/` queda firmado.
+
+### Configurar firma en GitHub Actions (automatizado)
+
+1. Convierte el `.pfx` a base64 para guardarlo como secret:
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("certificado.pfx")) | Set-Clipboard
+   ```
+2. En GitHub: **Settings → Secrets and variables → Actions → New repository secret**:
+   - `CSC_LINK` → pega el contenido base64 (electron-builder lo decodifica solo).
+   - `CSC_KEY_PASSWORD` → la contraseña del .pfx.
+3. El workflow ya está preparado para usarlos; el siguiente release saldrá firmado.
+
+### Verificar la firma
+
+En el `.exe` descargado: clic derecho → Propiedades → pestaña **Firmas digitales**.
+Debe aparecer "OdontoSoft" como firmante.
+
+Después de firmar varios releases (3-5), Microsoft empieza a confiar en tu
+certificado y SmartScreen ya no muestra alertas.
+
+---
+
+## 5. Checklist antes de publicar v1.0.0
 
 - [ ] `secrets/license-private.pem` existe y está respaldada offline.
 - [ ] `app/main/auth/licencia.js` tiene la clave pública real (no el placeholder).
 - [ ] Probaste emitir una licencia y activarla en una PC limpia.
 - [ ] Probaste el modo demo: registrar 10 pacientes y confirmar que el 11 da error.
-- [ ] El icono `build/icon.ico` existe (Windows lo necesita).
-- [ ] La landing muestra el botón de descarga apuntando al repo correcto.
+- [ ] `build/icon.ico` existe (ver `build/README.md` para generarlo).
+- [ ] `build/license_es.txt` está revisado (tiene tu razón social/contacto correctos).
+- [ ] `electron-builder.yml`: `publish.owner` y `publish.repo` apuntan a tu repo real.
+- [ ] La landing muestra el botón de descarga apuntando al repo correcto
+      (`Odontosoft/src/config.ts → downloadUrl`).
 - [ ] El form de Tally está creado y su ID está pegado en
       `Odontosoft/src/config.ts → tallyCloudWaitlistFormId`.
+- [ ] (Opcional pero recomendado) Comprar y configurar certificado de code signing.
+- [ ] (Opcional) Secrets `CSC_LINK` y `CSC_KEY_PASSWORD` en GitHub Actions.
 - [ ] Probaste el flujo completo en una PC virgen (no la tuya): instala → wizard →
       registra paciente → activa licencia → registra más pacientes.
