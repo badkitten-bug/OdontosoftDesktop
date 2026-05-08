@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Logo placeholder de OdontoSoft.
+    Reemplázalo con tu diseño definitivo cuando lo tengas (mismo formato 1024x1024).
+    Mantén el viewBox para que las conversiones a .ico/.icns/.png salgan correctas.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18"/>
+      <feOffset dx="0" dy="14"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fondo cuadrado con esquinas redondeadas -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- Diente estilizado en el centro (paths puros, sin dependencias de fuente) -->
+  <g transform="translate(512 540)" filter="url(#shadow)" fill="#FFFFFF">
+    <!--
+      Forma de diente: dos lóbulos arriba (raíces) + cuerpo redondeado abajo,
+      con una pequeña hendidura central.
+    -->
+    <path d="
+      M -240 -240
+      C -290 -240 -320 -200 -320 -140
+      L -320 80
+      C -320 200 -240 320 -160 320
+      C -130 320 -110 290 -100 240
+      L -70 80
+      C -65 50 -55 50 -50 80
+      L -20 240
+      C -10 290 10 320 40 320
+      C 90 320 150 280 200 220
+      C 260 150 280 70 280 0
+      L 280 -140
+      C 280 -200 250 -240 200 -240
+      C 160 -240 130 -220 90 -220
+      C 50 -220 30 -240 -10 -240
+      C -50 -240 -70 -220 -110 -220
+      C -150 -220 -180 -240 -240 -240
+      Z
+    "/>
+  </g>
+</svg>

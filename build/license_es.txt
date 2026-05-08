@@ -1,0 +1,53 @@
+CONTRATO DE LICENCIA DE USUARIO FINAL — OdontoSoft Desktop
+
+Versión: 1.0
+Fecha: 2026
+
+1. ACEPTACIÓN
+Al instalar OdontoSoft Desktop ("el Software"), el usuario acepta los términos
+descritos en este documento. Si no está de acuerdo, no instale el Software.
+
+2. LICENCIA
+OdontoSoft otorga al usuario una licencia personal, no exclusiva e intransferible
+para usar el Software en UNA (1) computadora física por cada licencia adquirida.
+La versión sin licencia activada funciona en modo Demo con un límite de 10
+pacientes registrados.
+
+3. RESTRICCIONES
+El usuario NO puede:
+  - Copiar, modificar, distribuir o vender el Software a terceros.
+  - Realizar ingeniería inversa, descompilar o desensamblar el Software.
+  - Usar la misma licencia en más de una computadora simultáneamente.
+  - Eliminar o alterar avisos de copyright o marcas comerciales.
+
+4. DATOS DEL CLIENTE
+El Software almacena los datos del cliente (pacientes, citas, facturas, archivos)
+EXCLUSIVAMENTE en la computadora del usuario. OdontoSoft no tiene acceso a esos
+datos a menos que el usuario los envíe voluntariamente (por ejemplo, mediante un
+paquete de diagnóstico).
+
+5. ACTUALIZACIONES Y SOPORTE
+La licencia incluye actualizaciones y soporte por WhatsApp durante UN (1) año
+desde la fecha de compra. Pasado ese plazo, el Software sigue funcionando, pero
+para recibir nuevas versiones y soporte directo se requiere renovar.
+
+6. RESPONSABILIDAD
+El Software se entrega "tal cual". OdontoSoft no se hace responsable por:
+  - Pérdida de datos por falta de copias de seguridad del usuario.
+  - Daños indirectos derivados del uso del Software.
+  - Decisiones clínicas o administrativas tomadas con base en sus reportes.
+
+Se recomienda hacer respaldos manuales periódicos además de los automáticos.
+
+7. TERMINACIÓN
+Esta licencia termina automáticamente si el usuario incumple los términos. Al
+terminar, el usuario debe desinstalar el Software de su computadora.
+
+8. LEY APLICABLE
+Este contrato se rige por las leyes de la República del Perú.
+
+9. CONTACTO
+Para soporte, ventas o consultas, escribe a través del canal oficial de WhatsApp
+publicado en https://odontosoft.me
+
+© OdontoSoft. Todos los derechos reservados.

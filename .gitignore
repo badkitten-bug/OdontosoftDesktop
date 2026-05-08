@@ -5,9 +5,11 @@ app/renderer/node_modules/
 
 # Build outputs
 dist/
-build/
 app/renderer/dist/
 app/renderer/build/
+# Nota: NO ignoramos build/ entera — necesitamos versionar build/source/logo.svg,
+# build/license_es.txt y build/README.md. Los binarios generados se ignoran
+# en la sección "Iconos generados" más abajo.
 
 # Database
 *.db
