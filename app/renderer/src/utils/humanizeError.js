@@ -35,7 +35,7 @@ const PATRONES = [
   {
     test: /DEMO_LIMIT|límite.*demo|alcanzado el límite/i,
     mensaje:
-      'Has alcanzado el límite de la versión demo (10 pacientes). Activa una licencia para registrar más.',
+      'Has alcanzado el límite de la versión demo (30 pacientes). Activa una licencia para registrar más.',
   },
   {
     test: /se solapa con otra cita/i,

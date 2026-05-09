@@ -10,7 +10,7 @@ descritos en este documento. Si no está de acuerdo, no instale el Software.
 2. LICENCIA
 OdontoSoft otorga al usuario una licencia personal, no exclusiva e intransferible
 para usar el Software en UNA (1) computadora física por cada licencia adquirida.
-La versión sin licencia activada funciona en modo Demo con un límite de 10
+La versión sin licencia activada funciona en modo Demo con un límite de 30
 pacientes registrados.
 
 3. RESTRICCIONES

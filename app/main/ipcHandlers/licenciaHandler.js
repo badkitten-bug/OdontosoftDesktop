@@ -3,7 +3,7 @@ const { requireRol, requireSesion } = require('../auth/sesiones');
 const { generarFingerprint } = require('../auth/fingerprint');
 const { verificarClave } = require('../auth/licencia');
 
-const LIMITE_PACIENTES_DEMO = 10;
+const LIMITE_PACIENTES_DEMO = 30;
 
 function getLicencia(db) {
   return db.prepare('SELECT * FROM licencia WHERE id = 1').get();

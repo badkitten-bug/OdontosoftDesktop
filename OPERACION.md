@@ -181,7 +181,7 @@ certificado y SmartScreen ya no muestra alertas.
 - [ ] `secrets/license-private.pem` existe y está respaldada offline.
 - [ ] `app/main/auth/licencia.js` tiene la clave pública real (no el placeholder).
 - [ ] Probaste emitir una licencia y activarla en una PC limpia.
-- [ ] Probaste el modo demo: registrar 10 pacientes y confirmar que el 11 da error.
+- [ ] Probaste el modo demo: registrar 30 pacientes y confirmar que el 31 da error.
 - [ ] `build/icon.ico` existe (ver `build/README.md` para generarlo).
 - [ ] `build/license_es.txt` está revisado (tiene tu razón social/contacto correctos).
 - [ ] `electron-builder.yml`: `publish.owner` y `publish.repo` apuntan a tu repo real.
