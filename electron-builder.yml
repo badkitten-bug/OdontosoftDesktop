@@ -33,7 +33,10 @@ win:
       arch:
         - x64
   icon: build/icon.ico
-  artifactName: "OdontoSoft-Setup-${version}.${ext}"
+  # Nombre constante para que /releases/latest/download/OdontoSoft-Setup.exe
+  # siempre apunte al instalador más reciente (la versión real va en las
+  # propiedades del .exe y en latest.yml para electron-updater).
+  artifactName: "OdontoSoft-Setup.${ext}"
   publisherName: OdontoSoft
   verifyUpdateCodeSignature: false   # poner en true cuando ya estés firmando
 
