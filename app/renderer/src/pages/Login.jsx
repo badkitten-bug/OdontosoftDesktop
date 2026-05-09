@@ -117,13 +117,13 @@ function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4">
-            <span className="text-4xl">🦷</span>
+      <div className={`bg-white rounded-2xl shadow-xl w-full ${modo === 'primer-admin' ? 'p-6 max-w-lg' : 'p-8 max-w-md'}`}>
+        <div className={`text-center ${modo === 'primer-admin' ? 'mb-4' : 'mb-8'}`}>
+          <div className={`inline-flex items-center justify-center bg-blue-600 rounded-full mb-3 ${modo === 'primer-admin' ? 'w-12 h-12' : 'w-20 h-20'}`}>
+            <span className={modo === 'primer-admin' ? 'text-2xl' : 'text-4xl'}>🦷</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">OdontoSoft</h1>
-          <p className="text-gray-600">
+          <h1 className={`font-bold text-gray-800 mb-1 ${modo === 'primer-admin' ? 'text-xl' : 'text-3xl'}`}>OdontoSoft</h1>
+          <p className="text-gray-600 text-sm">
             {modo === 'primer-admin' ? 'Configura tu cuenta de administrador' : 'Sistema de Gestión Clínica'}
           </p>
         </div>
@@ -136,17 +136,17 @@ function Login() {
         )}
 
         {modo === 'login' ? (
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="form-control">
-              <label className="label" htmlFor={usernameId}>
+              <label className="label py-1" htmlFor={usernameId}>
                 <span className="label-text font-medium">Usuario</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   id={usernameId}
                   type="text"
-                  className="input input-bordered w-full pl-10"
+                  className="input input-bordered w-full pl-10 input-sm h-10"
                   placeholder="Ingresa tu usuario"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -156,15 +156,15 @@ function Login() {
             </div>
 
             <div className="form-control">
-              <label className="label" htmlFor={passwordId}>
+              <label className="label py-1" htmlFor={passwordId}>
                 <span className="label-text font-medium">Contraseña</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   id={passwordId}
                   type="password"
-                  className="input input-bordered w-full pl-10"
+                  className="input input-bordered w-full pl-10 input-sm h-10"
                   placeholder="Ingresa tu contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -181,27 +181,28 @@ function Login() {
                 </>
               ) : (
                 <>
-                  <LogIn size={20} />
+                  <LogIn size={18} />
                   Iniciar Sesión
                 </>
               )}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleCrearAdmin} className="space-y-4">
-            <div className="alert alert-info text-sm">
-              <ShieldCheck size={20} />
-              <span>Es la primera vez que abres OdontoSoft. Crea la cuenta del administrador.</span>
+          <form onSubmit={handleCrearAdmin} className="space-y-3">
+            <div className="alert alert-info py-2 text-xs">
+              <ShieldCheck size={16} />
+              <span>Primera vez: crea tu cuenta de administrador.</span>
             </div>
 
+            {/* Nombre completo */}
             <div className="form-control">
-              <label className="label" htmlFor={adminNombreId}>
-                <span className="label-text font-medium">Nombre completo</span>
+              <label className="label py-1" htmlFor={adminNombreId}>
+                <span className="label-text font-medium text-xs">Nombre completo</span>
               </label>
               <input
                 id={adminNombreId}
                 type="text"
-                className="input input-bordered w-full"
+                className="input input-bordered w-full input-sm h-10"
                 placeholder="Ej: Dra. María Pérez"
                 value={adminData.nombre}
                 onChange={(e) => setAdminData({ ...adminData, nombre: e.target.value })}
@@ -209,65 +210,71 @@ function Login() {
               />
             </div>
 
-            <div className="form-control">
-              <label className="label" htmlFor={adminUsernameId}>
-                <span className="label-text font-medium">Usuario</span>
-              </label>
-              <input
-                id={adminUsernameId}
-                type="text"
-                className="input input-bordered w-full"
-                value={adminData.username}
-                onChange={(e) => setAdminData({ ...adminData, username: e.target.value })}
-                required
-              />
+            {/* Usuario + Email en fila */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="form-control">
+                <label className="label py-1" htmlFor={adminUsernameId}>
+                  <span className="label-text font-medium text-xs">Usuario</span>
+                </label>
+                <input
+                  id={adminUsernameId}
+                  type="text"
+                  className="input input-bordered w-full input-sm h-10"
+                  value={adminData.username}
+                  onChange={(e) => setAdminData({ ...adminData, username: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-control">
+                <label className="label py-1" htmlFor={adminEmailId}>
+                  <span className="label-text font-medium text-xs">Email (opcional)</span>
+                </label>
+                <input
+                  id={adminEmailId}
+                  type="email"
+                  className="input input-bordered w-full input-sm h-10"
+                  placeholder="correo@ejemplo.com"
+                  value={adminData.email}
+                  onChange={(e) => setAdminData({ ...adminData, email: e.target.value })}
+                />
+              </div>
             </div>
 
-            <div className="form-control">
-              <label className="label" htmlFor={adminEmailId}>
-                <span className="label-text font-medium">Email (opcional)</span>
-              </label>
-              <input
-                id={adminEmailId}
-                type="email"
-                className="input input-bordered w-full"
-                value={adminData.email}
-                onChange={(e) => setAdminData({ ...adminData, email: e.target.value })}
-              />
+            {/* Contraseña + Confirmar en fila */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="form-control">
+                <label className="label py-1" htmlFor={adminPasswordId}>
+                  <span className="label-text font-medium text-xs">Contraseña</span>
+                </label>
+                <input
+                  id={adminPasswordId}
+                  type="password"
+                  className="input input-bordered w-full input-sm h-10"
+                  placeholder="Mín. 8 car., 1 MAY, 1 núm."
+                  value={adminData.password}
+                  onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
+                  required
+                  minLength={8}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label py-1" htmlFor={adminConfirmPasswordId}>
+                  <span className="label-text font-medium text-xs">Confirmar contraseña</span>
+                </label>
+                <input
+                  id={adminConfirmPasswordId}
+                  type="password"
+                  className="input input-bordered w-full input-sm h-10"
+                  placeholder="Repite la contraseña"
+                  value={adminData.confirmPassword}
+                  onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
+                  required
+                  minLength={8}
+                />
+              </div>
             </div>
 
-            <div className="form-control">
-              <label className="label" htmlFor={adminPasswordId}>
-                <span className="label-text font-medium">Contraseña</span>
-              </label>
-              <input
-                id={adminPasswordId}
-                type="password"
-                className="input input-bordered w-full"
-                placeholder="Mín. 8 caracteres, 1 mayúscula y 1 número"
-                value={adminData.password}
-                onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
-                required
-                minLength={8}
-              />
-            </div>
-
-            <div className="form-control">
-              <label className="label" htmlFor={adminConfirmPasswordId}>
-                <span className="label-text font-medium">Confirmar contraseña</span>
-              </label>
-              <input
-                id={adminConfirmPasswordId}
-                type="password"
-                className="input input-bordered w-full"
-                value={adminData.confirmPassword}
-                onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
-                required
-                minLength={8}
-              />
-            </div>
-
-            <button type="submit" className="btn btn-primary w-full gap-2" disabled={loading}>
+            <button type="submit" className="btn btn-primary w-full gap-2 mt-1" disabled={loading}>
               {loading ? (
                 <>
                   <span className="loading loading-spinner"></span>
@@ -275,7 +282,7 @@ function Login() {
                 </>
               ) : (
                 <>
-                  <UserPlus size={20} />
+                  <UserPlus size={18} />
                   Crear administrador
                 </>
               )}
