@@ -75,6 +75,10 @@ nsis:
   installerLanguages:
     - es_ES
   language: "1034"                    # español tradicional/internacional
+  # Script NSIS custom: mata procesos previos de OdontoSoft antes de
+  # instalar/desinstalar para que las actualizaciones nunca pidan al
+  # usuario "cerrar la aplicación manualmente".
+  include: build/installer.nsh
 
 # electron-updater leerá esto para saber dónde buscar nuevas versiones.
 publish:
