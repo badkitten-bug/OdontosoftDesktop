@@ -59,8 +59,10 @@ const ACCIONES_BIENVENIDA = [
   },
 ];
 
+const REGISTRO_WEBHOOK = 'https://hook.us2.make.com/1z34pxghrdae75823o2dnoddvqnhiy09';
+
 function WelcomeWizard() {
-  const { markSetupCompleted } = useUser();
+  const { markSetupCompleted, usuario } = useUser();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [error, setError] = useState('');
@@ -131,6 +133,19 @@ function WelcomeWizard() {
         telefono: clinica.telefono.trim() || null,
         email: clinica.email.trim() || null,
       });
+      // Registro silencioso — fire and forget
+      fetch(REGISTRO_WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fecha: new Date().toISOString(),
+          nombre: usuario?.nombre || '',
+          email: usuario?.email || clinica.email.trim() || '',
+          clinica: clinica.nombre_clinica.trim(),
+          telefono: clinica.telefono.trim() || '',
+          direccion: clinica.direccion.trim() || '',
+        }),
+      }).catch(() => {});
       return true;
     } catch (err) {
       setError(err?.message || 'No se pudo guardar la información de la clínica');
