@@ -305,6 +305,28 @@ function register(ipcMain) {
       .get(rol, modulo, permiso);
     return { tienePermiso: !!resultado };
   });
+
+  ipcMain.handle('recuperar-password', async (_event, { nombreClinica, newPassword }) => {
+    try {
+      const db = getDatabase();
+      const cfg = db.prepare('SELECT nombre_clinica FROM configuracion_clinica WHERE id = 1').get();
+      if (!cfg?.nombre_clinica) return { success: false, error: 'No hay clínica registrada' };
+      const coincide = cfg.nombre_clinica.trim().toLowerCase() === String(nombreClinica).trim().toLowerCase();
+      if (!coincide) return { success: false, error: 'El nombre de la clínica no coincide' };
+      if (!newPassword || newPassword.length < 8) return { success: false, error: 'La contraseña debe tener al menos 8 caracteres' };
+      if (!/[A-Z]/.test(newPassword)) return { success: false, error: 'La contraseña debe incluir al menos una letra mayúscula' };
+      if (!/\d/.test(newPassword)) return { success: false, error: 'La contraseña debe incluir al menos un número' };
+      const hash = await hashPassword(newPassword);
+      // Resetea la contraseña del primer administrador activo
+      const admin = db.prepare("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1 ORDER BY id ASC LIMIT 1").get();
+      if (!admin) return { success: false, error: 'No se encontró administrador' };
+      db.prepare('UPDATE usuarios SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, admin.id);
+      return { success: true };
+    } catch (e) {
+      console.error('[recuperar-password]', e);
+      return { success: false, error: e.message };
+    }
+  });
 }
 
 module.exports = { register };
