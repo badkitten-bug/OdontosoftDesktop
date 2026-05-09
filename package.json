@@ -1,6 +1,6 @@
 {
   "name": "odontosoft-desktop",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Aplicación de escritorio para clínicas odontológicas",
   "main": "app/main/main.js",
   "scripts": {
@@ -27,7 +27,11 @@
   "author": "OdontoSoft",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^9.2.2"
+    "archiver": "^7.0.1",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^9.2.2",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
