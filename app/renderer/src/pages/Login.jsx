@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { AlertCircle, CheckCircle2, KeyRound, Lock, LogIn, ShieldCheck, User, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LogIn, ShieldCheck, User, UserPlus } from 'lucide-react';
 import { login, existenUsuarios, crearPrimerAdmin, recuperarPassword } from '../services/dbService';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState({ login: false, adminPwd: false, adminConfirm: false, recPwd: false, recConfirm: false });
 
   // Estado del primer admin
   const [adminData, setAdminData] = useState({
@@ -215,13 +216,16 @@ function Login() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
                   id={passwordId}
-                  type="password"
-                  className="input input-bordered w-full pl-10 input-sm h-10"
+                  type={showPwd.login ? 'text' : 'password'}
+                  className="input input-bordered w-full pl-10 pr-10 input-sm h-10"
                   placeholder="Ingresa tu contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShowPwd((p) => ({ ...p, login: !p.login }))}>
+                  {showPwd.login ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -328,29 +332,39 @@ function Login() {
                     <label className="label py-1" htmlFor={recPasswordId}>
                       <span className="label-text font-medium text-xs">Nueva contraseña</span>
                     </label>
-                    <input
-                      id={recPasswordId}
-                      type="password"
-                      className="input input-bordered w-full input-sm h-10"
-                      placeholder="Mín. 8, 1 MAY, 1 núm."
-                      value={recuperar.newPassword}
-                      onChange={(e) => setRecuperar({ ...recuperar, newPassword: e.target.value })}
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        id={recPasswordId}
+                        type={showPwd.recPwd ? 'text' : 'password'}
+                        className="input input-bordered w-full input-sm h-10 pr-10"
+                        placeholder="Mín. 8, 1 MAY, 1 núm."
+                        value={recuperar.newPassword}
+                        onChange={(e) => setRecuperar({ ...recuperar, newPassword: e.target.value })}
+                        required
+                      />
+                      <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShowPwd((p) => ({ ...p, recPwd: !p.recPwd }))}>
+                        {showPwd.recPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="form-control">
                     <label className="label py-1" htmlFor={recConfirmId}>
                       <span className="label-text font-medium text-xs">Confirmar</span>
                     </label>
-                    <input
-                      id={recConfirmId}
-                      type="password"
-                      className="input input-bordered w-full input-sm h-10"
-                      placeholder="Repite la contraseña"
-                      value={recuperar.confirmPassword}
-                      onChange={(e) => setRecuperar({ ...recuperar, confirmPassword: e.target.value })}
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        id={recConfirmId}
+                        type={showPwd.recConfirm ? 'text' : 'password'}
+                        className="input input-bordered w-full input-sm h-10 pr-10"
+                        placeholder="Repite la contraseña"
+                        value={recuperar.confirmPassword}
+                        onChange={(e) => setRecuperar({ ...recuperar, confirmPassword: e.target.value })}
+                        required
+                      />
+                      <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShowPwd((p) => ({ ...p, recConfirm: !p.recConfirm }))}>
+                        {showPwd.recConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <button type="submit" className="btn btn-primary w-full gap-2" disabled={loading}>
@@ -424,31 +438,41 @@ function Login() {
                 <label className="label py-1" htmlFor={adminPasswordId}>
                   <span className="label-text font-medium text-xs">Contraseña</span>
                 </label>
-                <input
-                  id={adminPasswordId}
-                  type="password"
-                  className="input input-bordered w-full input-sm h-10"
-                  placeholder="Mín. 8 car., 1 MAY, 1 núm."
-                  value={adminData.password}
-                  onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
-                  required
-                  minLength={8}
-                />
+                <div className="relative">
+                  <input
+                    id={adminPasswordId}
+                    type={showPwd.adminPwd ? 'text' : 'password'}
+                    className="input input-bordered w-full input-sm h-10 pr-10"
+                    placeholder="Mín. 8 car., 1 MAY, 1 núm."
+                    value={adminData.password}
+                    onChange={(e) => setAdminData({ ...adminData, password: e.target.value })}
+                    required
+                    minLength={8}
+                  />
+                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShowPwd((p) => ({ ...p, adminPwd: !p.adminPwd }))}>
+                    {showPwd.adminPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="form-control">
                 <label className="label py-1" htmlFor={adminConfirmPasswordId}>
                   <span className="label-text font-medium text-xs">Confirmar contraseña</span>
                 </label>
-                <input
-                  id={adminConfirmPasswordId}
-                  type="password"
-                  className="input input-bordered w-full input-sm h-10"
-                  placeholder="Repite la contraseña"
-                  value={adminData.confirmPassword}
-                  onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
-                  required
-                  minLength={8}
-                />
+                <div className="relative">
+                  <input
+                    id={adminConfirmPasswordId}
+                    type={showPwd.adminConfirm ? 'text' : 'password'}
+                    className="input input-bordered w-full input-sm h-10 pr-10"
+                    placeholder="Repite la contraseña"
+                    value={adminData.confirmPassword}
+                    onChange={(e) => setAdminData({ ...adminData, confirmPassword: e.target.value })}
+                    required
+                    minLength={8}
+                  />
+                  <button type="button" tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onClick={() => setShowPwd((p) => ({ ...p, adminConfirm: !p.adminConfirm }))}>
+                    {showPwd.adminConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
 
