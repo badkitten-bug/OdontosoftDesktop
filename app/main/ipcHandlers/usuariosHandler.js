@@ -48,6 +48,16 @@ function asegurarPasswordValido(password) {
 
 function register(ipcMain) {
   // ¿Existen usuarios? (para detectar primer arranque)
+  ipcMain.handle('get-usuarios-publicos', async () => {
+    try {
+      const db = getDatabase();
+      const usuarios = db.prepare("SELECT username, nombre FROM usuarios WHERE activo = 1 ORDER BY id ASC").all();
+      return { ok: true, usuarios };
+    } catch (e) {
+      return { ok: false, usuarios: [] };
+    }
+  });
+
   ipcMain.handle('existen-usuarios', async () => {
     try {
       const db = getDatabase();

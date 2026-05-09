@@ -7,26 +7,33 @@ import autoTable from 'jspdf-autotable';
 export function generarPDFFactura(factura, paciente, pagos = []) {
   const doc = new jsPDF();
   
+  const esFactura = factura.tipo_comprobante === 'factura';
+  const tipoLabel = esFactura ? 'FACTURA' : 'BOLETA DE VENTA';
+
   // Encabezado
   doc.setFontSize(20);
-  doc.text('FACTURA', 105, 20, { align: 'center' });
-  
+  doc.text(tipoLabel, 105, 20, { align: 'center' });
+
   doc.setFontSize(12);
   doc.text('OdontoSoft - Clínica Odontológica', 105, 30, { align: 'center' });
   doc.text('Sistema de Gestión Clínica', 105, 36, { align: 'center' });
-  
-  // Información de la factura
+
+  // Información del comprobante
   doc.setFontSize(10);
   doc.text(`Número: ${factura.numero}`, 20, 50);
-  doc.text(`Fecha: ${new Date(factura.fecha).toLocaleDateString('es-ES')}`, 20, 56);
+  doc.text(`Fecha: ${new Date(factura.fecha).toLocaleDateString('es-PE')}`, 20, 56);
   doc.text(`Estado: ${factura.estado.toUpperCase()}`, 20, 62);
-  
-  // Información del paciente
+
+  // Datos del cliente / paciente
   doc.setFontSize(12);
-  doc.text('DATOS DEL PACIENTE', 20, 75);
+  doc.text(esFactura ? 'DATOS DEL CLIENTE' : 'DATOS DEL PACIENTE', 20, 75);
   doc.setFontSize(10);
-  doc.text(`Nombre: ${paciente?.nombre || 'N/A'}`, 20, 82);
-  if (paciente?.dni) {
+  doc.text(`Nombre: ${esFactura ? (factura.cliente_razon_social || paciente?.nombre || 'N/A') : (paciente?.nombre || 'N/A')}`, 20, 82);
+  if (esFactura && factura.cliente_ruc) {
+    doc.text(`RUC: ${factura.cliente_ruc}`, 20, 88);
+  } else if (factura.cliente_dni) {
+    doc.text(`DNI: ${factura.cliente_dni}`, 20, 88);
+  } else if (paciente?.dni) {
     doc.text(`DNI: ${paciente.dni}`, 20, 88);
   }
   if (paciente?.telefono) {
@@ -36,7 +43,7 @@ export function generarPDFFactura(factura, paciente, pagos = []) {
   // Detalles de la factura
   let yPos = 110;
   doc.setFontSize(12);
-  doc.text('DETALLES DE LA FACTURA', 20, yPos);
+  doc.text(esFactura ? 'DETALLES DE LA FACTURA' : 'DETALLES DE LA BOLETA', 20, yPos);
   yPos += 10;
   
   const tableData = [

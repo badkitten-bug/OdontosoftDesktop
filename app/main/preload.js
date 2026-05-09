@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logout: auth('logout'),
   whoami: auth('whoami'),
   existenUsuarios: noauth('existen-usuarios'),
+  getUsuariosPublicos: noauth('get-usuarios-publicos'),
   crearPrimerAdmin: noauth('crear-primer-admin'),
   recuperarPassword: noauth('recuperar-password'),
 

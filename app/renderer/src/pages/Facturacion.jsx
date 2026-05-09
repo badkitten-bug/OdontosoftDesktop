@@ -485,7 +485,15 @@ function Facturacion() {
                   <select
                     className="select select-bordered w-full"
                     value={formDataFactura.id_paciente}
-                    onChange={(e) => setFormDataFactura({ ...formDataFactura, id_paciente: e.target.value })}
+                    onChange={(e) => {
+                      const pid = e.target.value;
+                      const pac = pacientes.find((p) => String(p.id) === pid);
+                      setFormDataFactura({
+                        ...formDataFactura,
+                        id_paciente: pid,
+                        cliente_dni: pac?.dni || '',
+                      });
+                    }}
                     required
                   >
                     <option value="">-- Selecciona un paciente --</option>

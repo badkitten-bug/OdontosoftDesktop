@@ -190,6 +190,7 @@ export const setSessionId = (id) => window.electronAPI?.setSessionId(id);
 export const clearSessionId = () => window.electronAPI?.clearSessionId();
 export const whoami = () => window.electronAPI?.whoami() || Promise.resolve({ autenticado: false });
 export const existenUsuarios = () => window.electronAPI?.existenUsuarios() || Promise.resolve({ existen: false, total: 0 });
+export const getUsuariosPublicos = () => window.electronAPI?.getUsuariosPublicos() || Promise.resolve({ ok: false, usuarios: [] });
 export const crearPrimerAdmin = (data) => window.electronAPI?.crearPrimerAdmin(data) || Promise.resolve({ success: false });
 export const recuperarPassword = (data) => window.electronAPI?.recuperarPassword(data) || Promise.resolve({ success: false });
 export const logout = () => window.electronAPI?.logout() || Promise.resolve({ success: true });

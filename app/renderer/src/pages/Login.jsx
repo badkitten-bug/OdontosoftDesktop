@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LogIn, ShieldCheck, User, UserPlus } from 'lucide-react';
-import { login, existenUsuarios, crearPrimerAdmin, recuperarPassword } from '../services/dbService';
+import { login, existenUsuarios, crearPrimerAdmin, recuperarPassword, getUsuariosPublicos } from '../services/dbService';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState({ login: false, adminPwd: false, adminConfirm: false, recPwd: false, recConfirm: false });
+  const [usuariosLogin, setUsuariosLogin] = useState([]); // lista pública para el selector de usuario
 
   // Estado del primer admin
   const [adminData, setAdminData] = useState({
@@ -44,8 +45,13 @@ function Login() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await existenUsuarios();
+        const [res, pub] = await Promise.all([existenUsuarios(), getUsuariosPublicos()]);
         if (cancelled) return;
+        if (pub?.ok && pub.usuarios?.length) {
+          setUsuariosLogin(pub.usuarios);
+          // Si solo hay un usuario, pre-rellena el campo
+          if (pub.usuarios.length === 1) setUsername(pub.usuarios[0].username);
+        }
         setModo(res?.existen ? 'login' : 'primer-admin');
       } catch (e) {
         console.error('Error al verificar usuarios:', e);
@@ -190,6 +196,30 @@ function Login() {
 
         {modo === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-4">
+            {/* Selector de usuario estilo Facebook — solo si hay múltiples */}
+            {usuariosLogin.length > 1 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-2">Selecciona tu cuenta:</p>
+                <div className="flex flex-wrap gap-2">
+                  {usuariosLogin.map((u) => (
+                    <button
+                      key={u.username}
+                      type="button"
+                      onClick={() => { setUsername(u.username); setPassword(''); }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-sm transition ${username === u.username ? 'border-blue-500 bg-blue-50 text-blue-700 font-semibold' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        {u.nombre ? u.nombre[0].toUpperCase() : u.username[0].toUpperCase()}
+                      </div>
+                      <div className="text-left">
+                        <p className="leading-tight">{u.nombre || u.username}</p>
+                        {u.nombre && <p className="text-xs text-gray-400 leading-tight">@{u.username}</p>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="form-control">
               <label className="label py-1" htmlFor={usernameId}>
                 <span className="label-text font-medium">Usuario</span>
