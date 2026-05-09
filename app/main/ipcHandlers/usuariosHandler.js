@@ -306,21 +306,28 @@ function register(ipcMain) {
     return { tienePermiso: !!resultado };
   });
 
-  ipcMain.handle('recuperar-password', async (_event, { nombreClinica, newPassword }) => {
+  ipcMain.handle('recuperar-password', async (_event, { nombreClinica, username, newPassword }) => {
     try {
       const db = getDatabase();
       const cfg = db.prepare('SELECT nombre_clinica FROM configuracion_clinica WHERE id = 1').get();
       if (!cfg?.nombre_clinica) return { success: false, error: 'No hay clínica registrada' };
       const coincide = cfg.nombre_clinica.trim().toLowerCase() === String(nombreClinica).trim().toLowerCase();
       if (!coincide) return { success: false, error: 'El nombre de la clínica no coincide' };
+
+      // Paso 1: solo verificar clínica y devolver lista de usuarios admin
+      if (!username && !newPassword) {
+        const admins = db.prepare("SELECT username, nombre FROM usuarios WHERE rol = 'admin' AND activo = 1 ORDER BY id ASC").all();
+        return { success: true, usuarios: admins };
+      }
+
+      // Paso 2: resetear contraseña del usuario seleccionado
       if (!newPassword || newPassword.length < 8) return { success: false, error: 'La contraseña debe tener al menos 8 caracteres' };
-      if (!/[A-Z]/.test(newPassword)) return { success: false, error: 'La contraseña debe incluir al menos una letra mayúscula' };
-      if (!/\d/.test(newPassword)) return { success: false, error: 'La contraseña debe incluir al menos un número' };
+      if (!/[A-Z]/.test(newPassword)) return { success: false, error: 'Debe incluir al menos una letra mayúscula' };
+      if (!/\d/.test(newPassword)) return { success: false, error: 'Debe incluir al menos un número' };
+      const target = db.prepare("SELECT id FROM usuarios WHERE username = ? AND rol = 'admin' AND activo = 1").get(username);
+      if (!target) return { success: false, error: 'Usuario no encontrado' };
       const hash = await hashPassword(newPassword);
-      // Resetea la contraseña del primer administrador activo
-      const admin = db.prepare("SELECT id FROM usuarios WHERE rol = 'admin' AND activo = 1 ORDER BY id ASC LIMIT 1").get();
-      if (!admin) return { success: false, error: 'No se encontró administrador' };
-      db.prepare('UPDATE usuarios SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, admin.id);
+      db.prepare('UPDATE usuarios SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(hash, target.id);
       return { success: true };
     } catch (e) {
       console.error('[recuperar-password]', e);

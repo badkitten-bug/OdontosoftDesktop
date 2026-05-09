@@ -1,6 +1,6 @@
 {
   "name": "odontosoft-desktop",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "description": "Aplicación de escritorio para clínicas odontológicas",
   "main": "app/main/main.js",
   "scripts": {

@@ -20,8 +20,9 @@ function Login() {
     confirmPassword: '',
   });
 
-  // Estado de recuperación de contraseña
-  const [recuperar, setRecuperar] = useState({ nombreClinica: '', newPassword: '', confirmPassword: '' });
+  // Estado de recuperación de contraseña (2 pasos)
+  const [recuperar, setRecuperar] = useState({ nombreClinica: '', selectedUser: '', newPassword: '', confirmPassword: '' });
+  const [usuariosAdmin, setUsuariosAdmin] = useState([]); // paso 1 → lista de admins
   const [recuperado, setRecuperado] = useState(false);
 
   const { onLoginSuccess } = useUser();
@@ -73,17 +74,37 @@ function Login() {
     }
   };
 
-  const handleRecuperar = async (e) => {
+  const handleVerificarClinica = async (e) => {
     e.preventDefault();
     setError('');
     if (!recuperar.nombreClinica.trim()) return setError('Escribe el nombre de tu clínica');
+    setLoading(true);
+    try {
+      const res = await recuperarPassword({ nombreClinica: recuperar.nombreClinica });
+      if (res?.success && res.usuarios?.length) {
+        setUsuariosAdmin(res.usuarios);
+        setRecuperar((r) => ({ ...r, selectedUser: res.usuarios[0].username }));
+      } else {
+        setError(res?.error || 'El nombre de la clínica no coincide');
+      }
+    } catch (err) {
+      setError(err?.message || 'Error al verificar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecuperar = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!recuperar.selectedUser) return setError('Selecciona un usuario');
     if (recuperar.newPassword.length < 8) return setError('La contraseña debe tener al menos 8 caracteres');
     if (!/[A-Z]/.test(recuperar.newPassword)) return setError('Debe incluir al menos una letra mayúscula');
     if (!/\d/.test(recuperar.newPassword)) return setError('Debe incluir al menos un número');
     if (recuperar.newPassword !== recuperar.confirmPassword) return setError('Las contraseñas no coinciden');
     setLoading(true);
     try {
-      const res = await recuperarPassword({ nombreClinica: recuperar.nombreClinica, newPassword: recuperar.newPassword });
+      const res = await recuperarPassword({ nombreClinica: recuperar.nombreClinica, username: recuperar.selectedUser, newPassword: recuperar.newPassword });
       if (res?.success) {
         setRecuperado(true);
         setError('');
@@ -236,19 +257,24 @@ function Login() {
                   <CheckCircle2 size={28} />
                 </div>
                 <p className="font-semibold text-gray-800">Contraseña restablecida</p>
-                <p className="text-sm text-gray-500">Ya puedes iniciar sesión con tu nueva contraseña.</p>
-                <button type="button" className="btn btn-primary w-full" onClick={() => { setModo('login'); setError(''); }}>
+                <p className="text-sm text-gray-500">
+                  Ya puedes iniciar sesión con el usuario <strong>{recuperar.selectedUser}</strong>.
+                </p>
+                <button type="button" className="btn btn-primary w-full" onClick={() => { setModo('login'); setError(''); setUsername(recuperar.selectedUser); }}>
                   Ir al inicio de sesión
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleRecuperar} className="space-y-3">
+            ) : usuariosAdmin.length === 0 ? (
+              /* Paso 1: verificar nombre de clínica */
+              <form onSubmit={handleVerificarClinica} className="space-y-3">
                 <div className="alert alert-info py-2 text-xs">
                   <KeyRound size={16} />
-                  <span>Escribe el nombre de tu clínica exactamente como lo registraste.</span>
+                  <span>Escribe el nombre de tu clínica para ver los usuarios disponibles.</span>
                 </div>
                 <div className="form-control">
-                  <label className="label py-1" htmlFor={recClinicaId}><span className="label-text font-medium text-xs">Nombre de la clínica</span></label>
+                  <label className="label py-1" htmlFor={recClinicaId}>
+                    <span className="label-text font-medium text-xs">Nombre de la clínica</span>
+                  </label>
                   <input
                     id={recClinicaId}
                     type="text"
@@ -259,21 +285,63 @@ function Login() {
                     required
                   />
                 </div>
+                <button type="submit" className="btn btn-primary w-full gap-2" disabled={loading}>
+                  {loading ? <span className="loading loading-spinner"></span> : <KeyRound size={18} />}
+                  Verificar clínica
+                </button>
+                <div className="text-center">
+                  <button type="button" className="text-xs text-blue-500 hover:underline" onClick={() => { setModo('login'); setError(''); }}>
+                    Volver al inicio de sesión
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Paso 2: seleccionar usuario y nueva contraseña */
+              <form onSubmit={handleRecuperar} className="space-y-3">
+                <div className="alert alert-success py-2 text-xs">
+                  <CheckCircle2 size={16} />
+                  <span>Clínica verificada. Selecciona tu usuario y pon una nueva contraseña.</span>
+                </div>
+                <div className="form-control">
+                  <p className="label-text font-medium text-xs py-1">Tu usuario</p>
+                  <div className="flex flex-col gap-2">
+                    {usuariosAdmin.map((u) => (
+                      <label key={u.username} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${recuperar.selectedUser === u.username ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <input
+                          type="radio"
+                          name="selectedUser"
+                          className="radio radio-primary radio-sm"
+                          value={u.username}
+                          checked={recuperar.selectedUser === u.username}
+                          onChange={() => setRecuperar({ ...recuperar, selectedUser: u.username })}
+                        />
+                        <div>
+                          <p className="font-semibold text-sm text-gray-800">{u.username}</p>
+                          {u.nombre && <p className="text-xs text-gray-500">{u.nombre}</p>}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="form-control">
-                    <label className="label py-1" htmlFor={recPasswordId}><span className="label-text font-medium text-xs">Nueva contraseña</span></label>
+                    <label className="label py-1" htmlFor={recPasswordId}>
+                      <span className="label-text font-medium text-xs">Nueva contraseña</span>
+                    </label>
                     <input
                       id={recPasswordId}
                       type="password"
                       className="input input-bordered w-full input-sm h-10"
-                      placeholder="Mín. 8 car., 1 MAY, 1 núm."
+                      placeholder="Mín. 8, 1 MAY, 1 núm."
                       value={recuperar.newPassword}
                       onChange={(e) => setRecuperar({ ...recuperar, newPassword: e.target.value })}
                       required
                     />
                   </div>
                   <div className="form-control">
-                    <label className="label py-1" htmlFor={recConfirmId}><span className="label-text font-medium text-xs">Confirmar contraseña</span></label>
+                    <label className="label py-1" htmlFor={recConfirmId}>
+                      <span className="label-text font-medium text-xs">Confirmar</span>
+                    </label>
                     <input
                       id={recConfirmId}
                       type="password"
@@ -290,8 +358,8 @@ function Login() {
                   Restablecer contraseña
                 </button>
                 <div className="text-center">
-                  <button type="button" className="text-xs text-blue-500 hover:underline" onClick={() => { setModo('login'); setError(''); }}>
-                    Volver al inicio de sesión
+                  <button type="button" className="text-xs text-blue-500 hover:underline" onClick={() => { setUsuariosAdmin([]); setError(''); }}>
+                    ← Volver
                   </button>
                 </div>
               </form>
