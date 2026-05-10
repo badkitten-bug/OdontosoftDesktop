@@ -4,6 +4,27 @@ const { getDatabase } = require('../db/database');
  * Registra los handlers IPC para planes de tratamiento
  */
 function register(ipcMain) {
+  // Obtener todos los planes (todos los pacientes)
+  ipcMain.handle('get-todos-planes', async () => {
+    try {
+      const db = getDatabase();
+      return db
+        .prepare(
+          `SELECT pt.*,
+             p.nombre as paciente_nombre,
+             t.nombre as tratamiento_nombre, t.precio as tratamiento_precio
+           FROM planes_tratamiento pt
+           LEFT JOIN pacientes p ON pt.id_paciente = p.id
+           LEFT JOIN tratamientos t ON pt.id_tratamiento = t.id
+           ORDER BY pt.fecha_inicio DESC`
+        )
+        .all();
+    } catch (error) {
+      console.error('Error al obtener todos los planes:', error);
+      throw error;
+    }
+  });
+
   // Obtener planes de un paciente
   ipcMain.handle('get-planes-paciente', async (event, idPaciente) => {
     try {

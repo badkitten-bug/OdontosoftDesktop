@@ -4,6 +4,7 @@ import { getPrescripcionesPaciente, getPrescripcion, addPrescripcion, updatePres
 import { getPacientes, getPaciente } from '../services/dbService';
 import { getOdontologosActivos, getOdontologo } from '../services/dbService';
 import { getCitas } from '../services/dbService';
+import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFPrescripcion } from '../utils/pdfGenerator';
 import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
@@ -163,6 +164,21 @@ function Prescripciones() {
     const nuevos = [...medicamentos];
     nuevos[index][field] = value;
     setMedicamentos(nuevos);
+  };
+
+  const handleImprimirPrescripcion = async (presc) => {
+    try {
+      const [paciente, odontologo, config] = await Promise.all([
+        getPaciente(presc.id_paciente),
+        getOdontologo(presc.id_odontologo),
+        getConfiguracionClinica(),
+      ]);
+      const doc = generarPDFPrescripcion(presc, paciente, odontologo, config);
+      doc.save(`Prescripcion_${presc.id}_${presc.fecha}.pdf`);
+    } catch (error) {
+      console.error('Error al imprimir prescripción:', error);
+      toast.error(humanizeError(error, 'No se pudo generar el PDF.'));
+    }
   };
 
   const handleCloseModal = () => {

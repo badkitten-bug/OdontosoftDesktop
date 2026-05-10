@@ -4,19 +4,23 @@ import autoTable from 'jspdf-autotable';
 /**
  * Genera un PDF de factura
  */
-export function generarPDFFactura(factura, paciente, pagos = []) {
+export function generarPDFFactura(factura, paciente, pagos = [], config = null) {
   const doc = new jsPDF();
-  
+
   const esFactura = factura.tipo_comprobante === 'factura';
   const tipoLabel = esFactura ? 'FACTURA' : 'BOLETA DE VENTA';
+  const clinicaNombre = config?.nombre_clinica || 'Clínica Odontológica';
+  const clinicaDireccion = config?.direccion || '';
+  const clinicaRUC = config?.ruc || '';
 
   // Encabezado
   doc.setFontSize(20);
   doc.text(tipoLabel, 105, 20, { align: 'center' });
 
   doc.setFontSize(12);
-  doc.text('OdontoSoft - Clínica Odontológica', 105, 30, { align: 'center' });
-  doc.text('Sistema de Gestión Clínica', 105, 36, { align: 'center' });
+  doc.text(clinicaNombre, 105, 30, { align: 'center' });
+  if (clinicaDireccion) doc.text(clinicaDireccion, 105, 36, { align: 'center' });
+  if (clinicaRUC) doc.text(`RUC: ${clinicaRUC}`, 105, clinicaDireccion ? 42 : 36, { align: 'center' });
 
   // Información del comprobante
   doc.setFontSize(10);
@@ -124,15 +128,18 @@ export function generarPDFFactura(factura, paciente, pagos = []) {
 /**
  * Genera un PDF de prescripción
  */
-export function generarPDFPrescripcion(prescripcion, paciente, odontologo) {
+export function generarPDFPrescripcion(prescripcion, paciente, odontologo, config = null) {
   const doc = new jsPDF();
-  
+  const clinicaNombre = config?.nombre_clinica || 'Clínica Odontológica';
+  const clinicaDireccion = config?.direccion || '';
+
   // Encabezado
   doc.setFontSize(20);
   doc.text('PRESCRIPCIÓN MÉDICA', 105, 20, { align: 'center' });
-  
+
   doc.setFontSize(12);
-  doc.text('OdontoSoft - Clínica Odontológica', 105, 30, { align: 'center' });
+  doc.text(clinicaNombre, 105, 30, { align: 'center' });
+  if (clinicaDireccion) doc.text(clinicaDireccion, 105, 36, { align: 'center' });
   
   // Información de la prescripción
   doc.setFontSize(10);

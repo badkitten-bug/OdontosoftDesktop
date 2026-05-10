@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { getPlanesPaciente, getPlan, addPlanTratamiento, updatePlanTratamiento, deletePlanTratamiento, addCitaPlan, marcarCitaPlanCompletada } from '../services/dbService';
+import { getTodosPlanes, getPlanesPaciente, getPlan, addPlanTratamiento, updatePlanTratamiento, deletePlanTratamiento, addCitaPlan, marcarCitaPlanCompletada } from '../services/dbService';
 import { getPacientes } from '../services/dbService';
 import { getTratamientosActivos } from '../services/dbService';
 import { getCitas } from '../services/dbService';
@@ -65,11 +65,11 @@ function PlanesTratamiento() {
     try {
       setLoading(true);
       if (pacienteFiltro) {
-        const data = await getPlanesPaciente(parseInt(pacienteFiltro));
+        const data = await getPlanesPaciente(parseInt(pacienteFiltro, 10));
         setPlanes(data);
       } else {
-        // Cargar todos los planes (necesitaríamos un handler para esto, por ahora cargamos por paciente)
-        setPlanes([]);
+        const data = await getTodosPlanes();
+        setPlanes(data);
       }
     } catch (error) {
       console.error('Error al cargar planes:', error);
@@ -283,7 +283,7 @@ function PlanesTratamiento() {
           <div className="text-center py-8">Cargando planes...</div>
         ) : filteredPlanes.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            {pacienteFiltro ? 'No hay planes para este paciente' : 'Selecciona un paciente para ver sus planes'}
+            {pacienteFiltro ? 'No hay planes para este paciente' : 'Aún no hay planes de tratamiento registrados'}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">

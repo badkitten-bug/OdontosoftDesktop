@@ -163,6 +163,7 @@ export const addMovimientoInventario = (data) => window.electronAPI?.addMovimien
 export const getProductosStockBajo = () => window.electronAPI?.getProductosStockBajo() || Promise.resolve([]);
 
 // Planes de Tratamiento
+export const getTodosPlanes = () => window.electronAPI?.getTodosPlanes() || Promise.resolve([]);
 export const getPlanesPaciente = (idPaciente) => window.electronAPI?.getPlanesPaciente(idPaciente) || Promise.resolve([]);
 export const getPlan = (id) => window.electronAPI?.getPlan(id) || Promise.resolve(null);
 export const addPlanTratamiento = (data) => window.electronAPI?.addPlanTratamiento(data) || Promise.resolve({});

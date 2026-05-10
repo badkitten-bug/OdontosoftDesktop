@@ -118,6 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProductosStockBajo: noauth('get-productos-stock-bajo'),
 
   // Planes de Tratamiento
+  getTodosPlanes: noauth('get-todos-planes'),
   getPlanesPaciente: noauth('get-planes-paciente'),
   getPlan: noauth('get-plan'),
   addPlanTratamiento: noauth('add-plan-tratamiento'),

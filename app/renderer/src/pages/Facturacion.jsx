@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Receipt, DollarSign, Calendar, User, FileText, Edit, Trash2, Printer, Download } from 'lucide-react';
 import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago } from '../services/dbService';
 import { getCitas, getPacientes, getPaciente } from '../services/dbService';
+import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
 import { exportarFacturas } from '../utils/excelExporter';
 import { formatMoneda, formatFecha, getIgvPorcentaje, getMonedaSimbolo } from '../utils/formatters';
@@ -50,6 +51,7 @@ function Facturacion() {
   const metodosPago = [
     { value: 'efectivo', label: 'Efectivo' },
     { value: 'tarjeta', label: 'Tarjeta' },
+    { value: 'yape', label: 'Yape / Plin' },
     { value: 'transferencia', label: 'Transferencia' },
     { value: 'cheque', label: 'Cheque' },
   ];
@@ -301,15 +303,13 @@ function Facturacion() {
 
   const handleImprimirFactura = async (factura) => {
     try {
-      // Obtener datos completos de la factura
-      const facturaCompleta = await getFactura(factura.id);
+      const [facturaCompleta, pagosFactura, config] = await Promise.all([
+        getFactura(factura.id),
+        getPagosFactura(factura.id),
+        getConfiguracionClinica(),
+      ]);
       const paciente = await getPaciente(facturaCompleta.id_paciente);
-      const pagosFactura = await getPagosFactura(factura.id);
-      
-      // Generar PDF
-      const doc = generarPDFFactura(facturaCompleta, paciente, pagosFactura);
-      
-      // Guardar PDF
+      const doc = generarPDFFactura(facturaCompleta, paciente, pagosFactura, config);
       doc.save(`Factura_${factura.numero}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al generar PDF:', error);
