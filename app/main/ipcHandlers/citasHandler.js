@@ -15,6 +15,14 @@ function register(ipcMain) {
         query += ' AND c.fecha = ?';
         params.push(filtros.fecha);
       }
+      if (filtros.fecha_inicio) {
+        query += ' AND c.fecha >= ?';
+        params.push(filtros.fecha_inicio);
+      }
+      if (filtros.fecha_fin) {
+        query += ' AND c.fecha <= ?';
+        params.push(filtros.fecha_fin);
+      }
       if (filtros.id_paciente) {
         query += ' AND c.id_paciente = ?';
         params.push(filtros.id_paciente);
@@ -210,6 +218,34 @@ function register(ipcMain) {
       };
     } catch (error) {
       console.error('Error al eliminar cita:', error);
+      throw error;
+    }
+  });
+
+  // Tratamientos más usados en citas (para reportes)
+  ipcMain.handle('get-tratamientos-populares', async (event, filtros = {}) => {
+    try {
+      const db = getDatabase();
+      let query = `
+        SELECT t.nombre, COUNT(ct.id) AS cantidad
+        FROM citas_tratamientos ct
+        JOIN tratamientos t ON ct.id_tratamiento = t.id
+        JOIN citas c ON ct.id_cita = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (filtros.fecha_inicio) {
+        query += ' AND c.fecha >= ?';
+        params.push(filtros.fecha_inicio);
+      }
+      if (filtros.fecha_fin) {
+        query += ' AND c.fecha <= ?';
+        params.push(filtros.fecha_fin);
+      }
+      query += ' GROUP BY ct.id_tratamiento ORDER BY cantidad DESC LIMIT 10';
+      return db.prepare(query).all(...params);
+    } catch (error) {
+      console.error('Error al obtener tratamientos populares:', error);
       throw error;
     }
   });

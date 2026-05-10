@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, DollarSign, Users, Calendar, Download, FileText } from 'lucide-react';
-import { getFacturas, getCitas, getPacientes, getTratamientos } from '../services/dbService';
+import { getFacturas, getCitas, getPacientes, getTratamientosPopulares } from '../services/dbService';
 import { exportarAExcel } from '../utils/excelExporter';
 import { formatMoneda } from '../utils/formatters';
+import { useToast } from '../context/UIContext';
 
 function Reportes() {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [fechaInicio, setFechaInicio] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [fechaFin, setFechaFin] = useState(new Date().toISOString().split('T')[0]);
@@ -35,22 +37,14 @@ function Reportes() {
       setLoading(true);
       
       // Obtener datos
-      const facturas = await getFacturas({
-        fecha_desde: fechaInicio,
-        fecha_hasta: fechaFin,
-      });
-      
-      const citas = await getCitas({});
-      const pacientes = await getPacientes();
-      const tratamientos = await getTratamientos();
+      const [facturas, citas, pacientes, tratamientosPopulares] = await Promise.all([
+        getFacturas({ fecha_desde: fechaInicio, fecha_hasta: fechaFin }),
+        getCitas({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
+        getPacientes(),
+        getTratamientosPopulares({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
+      ]);
 
-      // Filtrar citas por rango de fechas
-      const citasFiltradas = citas.filter(c => {
-        const fechaCita = new Date(c.fecha);
-        const inicio = new Date(fechaInicio);
-        const fin = new Date(fechaFin);
-        return fechaCita >= inicio && fechaCita <= fin;
-      });
+      const citasFiltradas = citas;
 
       // Calcular estadísticas
       const facturasPagadas = facturas.filter(f => f.estado === 'pagada');
@@ -91,11 +85,7 @@ function Reportes() {
       }
       setIngresosPorMes(meses);
 
-      // Tratamientos más comunes (simulado - necesitarías datos reales de citas_tratamientos)
-      setTratamientosMasComunes(tratamientos.slice(0, 5).map(t => ({
-        nombre: t.nombre,
-        cantidad: Math.floor(Math.random() * 20) + 1, // Simulado hasta tener datos reales
-      })));
+      setTratamientosMasComunes(tratamientosPopulares);
 
       // Estado de citas
       const estados = ['programada', 'confirmada', 'en_proceso', 'completada', 'cancelada'];
@@ -106,6 +96,7 @@ function Reportes() {
 
     } catch (error) {
       console.error('Error al cargar reportes:', error);
+      toast.error('No se pudieron cargar los reportes.');
     } finally {
       setLoading(false);
     }
@@ -322,7 +313,10 @@ function Reportes() {
 
       {/* Tratamientos más comunes */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Tratamientos Más Comunes</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Tratamientos Más Frecuentes</h2>
+        {tratamientosMasComunes.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">Sin tratamientos registrados en citas para este período.</p>
+        ) : (
         <div className="overflow-x-auto">
           <table className="table w-full">
             <thead>
@@ -357,6 +351,7 @@ function Reportes() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

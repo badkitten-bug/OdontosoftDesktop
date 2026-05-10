@@ -5,10 +5,12 @@ import { exportarProductos } from '../utils/excelExporter';
 import EmptyState from '../components/EmptyState';
 import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
+import { useUser } from '../context/UserContext';
 
 function Almacen() {
   const confirm = useConfirm();
   const toast = useToast();
+  const { currentUser } = useUser();
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -98,7 +100,7 @@ function Almacen() {
         tipo: movimientoData.tipo,
         cantidad: movimientoData.cantidad,
         motivo: movimientoData.motivo,
-        usuario: 'Admin',
+        usuario: currentUser?.nombre || currentUser?.username || 'Admin',
       });
       await loadProductos();
       await handleAbrirMovimiento(productoSeleccionado);

@@ -78,6 +78,7 @@ export const updateCita = (id, data) => window.electronAPI?.updateCita(id, data)
 export const deleteCita = (id) => window.electronAPI?.deleteCita(id) || Promise.resolve({});
 
 // Tratamientos
+export const getTratamientosPopulares = (filtros = {}) => window.electronAPI?.getTratamientosPopulares(filtros) || Promise.resolve([]);
 export const getTratamientos = () => window.electronAPI?.getTratamientos() || Promise.resolve([]);
 export const getTratamientosActivos = () => window.electronAPI?.getTratamientosActivos() || Promise.resolve([]);
 export const getTratamiento = (id) => window.electronAPI?.getTratamiento(id) || Promise.resolve(null);
