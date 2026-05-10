@@ -4,7 +4,7 @@ import autoTable from 'jspdf-autotable';
 /**
  * Genera un PDF de factura
  */
-export function generarPDFFactura(factura, paciente, pagos = [], config = null) {
+export function generarPDFFactura(factura, paciente, pagos = [], config = null, items = []) {
   const doc = new jsPDF();
 
   const esFactura = factura.tipo_comprobante === 'factura';
@@ -50,11 +50,26 @@ export function generarPDFFactura(factura, paciente, pagos = [], config = null) 
   doc.text(esFactura ? 'DETALLES DE LA FACTURA' : 'DETALLES DE LA BOLETA', 20, yPos);
   yPos += 10;
   
-  const tableData = [
-    ['Concepto', 'Cantidad', 'Precio Unit.', 'Descuento', 'Total'],
-    ['Servicio Odontológico', '1', `S/ ${factura.subtotal.toFixed(2)}`, `S/ ${factura.descuento.toFixed(2)}`, `S/ ${(factura.subtotal - factura.descuento).toFixed(2)}`],
-  ];
-  
+  const tableData = [['Concepto', 'Cantidad', 'Precio Unit.', 'Descuento', 'Total']];
+
+  if (items && items.length > 0) {
+    items.forEach(item => {
+      const precioUnit = item.precio_unitario ?? 0;
+      const cantidad = item.cantidad ?? 1;
+      const descItem = item.descuento ?? 0;
+      const totalItem = precioUnit * cantidad - descItem;
+      tableData.push([
+        item.nombre || 'Tratamiento',
+        cantidad.toString(),
+        `S/ ${precioUnit.toFixed(2)}`,
+        `S/ ${descItem.toFixed(2)}`,
+        `S/ ${totalItem.toFixed(2)}`,
+      ]);
+    });
+  } else {
+    tableData.push(['Servicio Odontológico', '1', `S/ ${factura.subtotal.toFixed(2)}`, `S/ ${factura.descuento.toFixed(2)}`, `S/ ${(factura.subtotal - factura.descuento).toFixed(2)}`]);
+  }
+
   if (factura.impuesto > 0) {
     tableData.push(['Impuesto', '1', `S/ ${factura.impuesto.toFixed(2)}`, '-', `S/ ${factura.impuesto.toFixed(2)}`]);
   }

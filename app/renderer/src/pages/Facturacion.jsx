@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Receipt, DollarSign, Calendar, User, FileText, Edit, Trash2, Printer, Download } from 'lucide-react';
 import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago } from '../services/dbService';
-import { getCitas, getPacientes, getPaciente } from '../services/dbService';
+import { getCitas, getPacientes, getPaciente, getTratamientosCita } from '../services/dbService';
 import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
 import { exportarFacturas } from '../utils/excelExporter';
@@ -308,8 +308,11 @@ function Facturacion() {
         getPagosFactura(factura.id),
         getConfiguracionClinica(),
       ]);
-      const paciente = await getPaciente(facturaCompleta.id_paciente);
-      const doc = generarPDFFactura(facturaCompleta, paciente, pagosFactura, config);
+      const [paciente, items] = await Promise.all([
+        getPaciente(facturaCompleta.id_paciente),
+        facturaCompleta.id_cita ? getTratamientosCita(facturaCompleta.id_cita) : Promise.resolve([]),
+      ]);
+      const doc = generarPDFFactura(facturaCompleta, paciente, pagosFactura, config, items);
       doc.save(`Factura_${factura.numero}_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('Error al generar PDF:', error);

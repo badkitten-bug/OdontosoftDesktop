@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download, AlertCircle, List } from 'lucide-react';
 import { getCitas, getCitasPorFecha, addCita, updateCita, deleteCita, verificarDisponibilidad } from '../services/dbService';
 import { getPacientes } from '../services/dbService';
 import { getOdontologosActivos } from '../services/dbService';
+import { getTratamientosActivos, getTratamientosCita, addTratamientoCita, deleteTratamientoCita } from '../services/dbService';
+import { formatMoneda } from '../utils/formatters';
 import { exportarCitas } from '../utils/excelExporter';
 import EmptyState from '../components/EmptyState';
 import { humanizeError } from '../utils/humanizeError';
@@ -16,8 +18,13 @@ function Citas() {
   const [citas, setCitas] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [odontologos, setOdontologos] = useState([]);
+  const [tratamientos, setTratamientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showTratamientosModal, setShowTratamientosModal] = useState(false);
+  const [citaConTratamientos, setCitaConTratamientos] = useState(null);
+  const [tratamientosCita, setTratamientosCita] = useState([]);
+  const [tratamientoForm, setTratamientoForm] = useState({ id_tratamiento: '', cantidad: 1, precio_unitario: '' });
   const [editingId, setEditingId] = useState(null);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0]);
   const [formData, setFormData] = useState({
@@ -42,6 +49,7 @@ function Citas() {
   useEffect(() => {
     loadPacientes();
     loadOdontologos();
+    loadTratamientos();
     loadCitas();
   }, [fechaSeleccionada]);
 
@@ -60,6 +68,15 @@ function Citas() {
       setOdontologos(data);
     } catch (error) {
       console.error('Error al cargar odontólogos:', error);
+    }
+  };
+
+  const loadTratamientos = async () => {
+    try {
+      const data = await getTratamientosActivos();
+      setTratamientos(data);
+    } catch (error) {
+      console.error('Error al cargar tratamientos:', error);
     }
   };
 
@@ -154,6 +171,55 @@ function Citas() {
     } catch (error) {
       console.error('Error al marcar asistencia:', error);
       toast.error(humanizeError(error, 'No se pudo marcar asistencia.'));
+    }
+  };
+
+  const handleAbrirTratamientos = async (cita) => {
+    setCitaConTratamientos(cita);
+    try {
+      const data = await getTratamientosCita(cita.id);
+      setTratamientosCita(data);
+    } catch (error) {
+      console.error('Error al cargar tratamientos de la cita:', error);
+      toast.error('No se pudieron cargar los tratamientos.');
+    }
+    setShowTratamientosModal(true);
+  };
+
+  const handleCerrarTratamientos = () => {
+    setShowTratamientosModal(false);
+    setCitaConTratamientos(null);
+    setTratamientosCita([]);
+    setTratamientoForm({ id_tratamiento: '', cantidad: 1, precio_unitario: '' });
+  };
+
+  const handleAddTratamientoCita = async (e) => {
+    e.preventDefault();
+    try {
+      await addTratamientoCita({
+        id_cita: citaConTratamientos.id,
+        id_tratamiento: parseInt(tratamientoForm.id_tratamiento, 10),
+        cantidad: parseInt(tratamientoForm.cantidad, 10) || 1,
+        precio_unitario: parseFloat(tratamientoForm.precio_unitario) || 0,
+      });
+      const data = await getTratamientosCita(citaConTratamientos.id);
+      setTratamientosCita(data);
+      setTratamientoForm({ id_tratamiento: '', cantidad: 1, precio_unitario: '' });
+      toast.success('Tratamiento agregado.');
+    } catch (error) {
+      console.error('Error al agregar tratamiento:', error);
+      toast.error(humanizeError(error, 'No se pudo agregar el tratamiento.'));
+    }
+  };
+
+  const handleDeleteTratamientoCita = async (id) => {
+    try {
+      await deleteTratamientoCita(id);
+      const data = await getTratamientosCita(citaConTratamientos.id);
+      setTratamientosCita(data);
+    } catch (error) {
+      console.error('Error al eliminar tratamiento:', error);
+      toast.error(humanizeError(error, 'No se pudo eliminar el tratamiento.'));
     }
   };
 
@@ -331,6 +397,16 @@ function Citas() {
                       )}
                       <div className="flex gap-2">
                         <button
+                          type="button"
+                          onClick={() => handleAbrirTratamientos(cita)}
+                          className="btn btn-sm btn-ghost gap-1 text-blue-600"
+                          title="Ver/agregar tratamientos de esta cita"
+                        >
+                          <List size={16} />
+                          Tratamientos
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleEdit(cita)}
                           className="btn btn-sm btn-ghost gap-1"
                         >
@@ -338,6 +414,7 @@ function Citas() {
                           Editar
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(cita.id)}
                           className="btn btn-sm btn-ghost text-red-600 hover:text-red-700 gap-1"
                         >
@@ -521,6 +598,134 @@ function Citas() {
             </form>
           </div>
           <div className="modal-backdrop" onClick={handleCloseModal}></div>
+        </div>
+      )}
+
+      {/* Modal de tratamientos de la cita */}
+      {showTratamientosModal && citaConTratamientos && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-1">Tratamientos de la cita</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {citaConTratamientos.paciente_nombre} — {citaConTratamientos.fecha} {citaConTratamientos.hora_inicio}
+            </p>
+
+            {/* Lista de tratamientos actuales */}
+            {tratamientosCita.length === 0 ? (
+              <p className="text-center text-gray-500 py-4 text-sm">Sin tratamientos registrados. Agrega el primero.</p>
+            ) : (
+              <div className="mb-4 overflow-x-auto">
+                <table className="table w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-xs uppercase text-gray-500">
+                      <th>Tratamiento</th>
+                      <th className="text-center">Cant.</th>
+                      <th className="text-right">Precio U.</th>
+                      <th className="text-right">Subtotal</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tratamientosCita.map((t) => (
+                      <tr key={t.id}>
+                        <td className="font-medium">{t.nombre}</td>
+                        <td className="text-center">{t.cantidad}</td>
+                        <td className="text-right">{formatMoneda(t.precio_unitario)}</td>
+                        <td className="text-right font-semibold">
+                          {formatMoneda(t.cantidad * t.precio_unitario - (t.descuento || 0))}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTratamientoCita(t.id)}
+                            className="btn btn-xs btn-ghost text-red-500 hover:text-red-700"
+                            title="Quitar tratamiento"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-gray-200">
+                      <td colSpan={3} className="text-right font-semibold text-gray-700 pt-2">Total cita:</td>
+                      <td className="text-right font-bold text-blue-700 pt-2">
+                        {formatMoneda(tratamientosCita.reduce((sum, t) => sum + t.cantidad * t.precio_unitario - (t.descuento || 0), 0))}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+
+            {/* Formulario para agregar tratamiento */}
+            <div className="border-t border-gray-200 pt-4">
+              <p className="font-medium text-sm mb-3 text-gray-700">Agregar tratamiento</p>
+              <form onSubmit={handleAddTratamientoCita} className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="form-control md:col-span-1">
+                    <select
+                      className="select select-bordered select-sm w-full"
+                      value={tratamientoForm.id_tratamiento}
+                      onChange={(e) => {
+                        const t = tratamientos.find((x) => String(x.id) === e.target.value);
+                        setTratamientoForm({
+                          ...tratamientoForm,
+                          id_tratamiento: e.target.value,
+                          precio_unitario: t ? t.precio.toString() : '',
+                        });
+                      }}
+                      required
+                    >
+                      <option value="">Seleccionar tratamiento...</option>
+                      {tratamientos.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre} — {formatMoneda(t.precio)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-control">
+                    <input
+                      type="number"
+                      min="1"
+                      className="input input-bordered input-sm w-full"
+                      placeholder="Cantidad"
+                      value={tratamientoForm.cantidad}
+                      onChange={(e) => setTratamientoForm({ ...tratamientoForm, cantidad: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-control">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="input input-bordered input-sm w-full"
+                      placeholder="Precio unitario"
+                      value={tratamientoForm.precio_unitario}
+                      onChange={(e) => setTratamientoForm({ ...tratamientoForm, precio_unitario: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" className="btn btn-primary btn-sm gap-1">
+                    <Plus size={16} /> Agregar
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="modal-action">
+              <button type="button" className="btn btn-ghost" onClick={handleCerrarTratamientos}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={handleCerrarTratamientos}></div>
         </div>
       )}
     </div>
