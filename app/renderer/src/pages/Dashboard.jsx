@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, DollarSign, Users, Package, TrendingUp, AlertCircle } from 'lucide-react';
 import { getCitasPorFecha, getFacturas, getPacientes, getProductosStockBajo } from '../services/dbService';
 import { formatMoneda } from '../utils/formatters';
+import OnboardingChecklist from '../components/OnboardingChecklist';
 
 function Dashboard() {
   const [citasHoy, setCitasHoy] = useState([]);
@@ -77,6 +78,8 @@ function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
         <p className="text-gray-600 mt-1">Resumen general de la clínica</p>
       </div>
+
+      <OnboardingChecklist />
 
       {/* Métricas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

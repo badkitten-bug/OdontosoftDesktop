@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Plus, Edit, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getOdontologosActivos } from '../services/dbService';
 import { getHorarios, addHorario, updateHorario, deleteHorario } from '../services/dbService';
 import { humanizeError } from '../utils/humanizeError';
@@ -17,6 +17,7 @@ const diasSemana = [
 ];
 
 function Horarios() {
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const toast = useToast();
   const [searchParams] = useSearchParams();
@@ -25,6 +26,7 @@ function Horarios() {
   const [odontologos, setOdontologos] = useState([]);
   const [horarios, setHorarios] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initLoading, setInitLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [selectedOdontologo, setSelectedOdontologo] = useState(odontologoIdParam ? parseInt(odontologoIdParam) : null);
@@ -54,6 +56,8 @@ function Horarios() {
       setOdontologos(data);
     } catch (error) {
       console.error('Error al cargar odontólogos:', error);
+    } finally {
+      setInitLoading(false);
     }
   };
 
@@ -152,6 +156,20 @@ function Horarios() {
           Nuevo Horario
         </button>
       </div>
+
+      {/* Aviso de prerrequisito */}
+      {!initLoading && odontologos.length === 0 && (
+        <div className="alert alert-warning shadow-sm">
+          <AlertCircle size={20} className="flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Primero necesitas registrar un odontólogo</p>
+            <p className="text-xs">Los horarios se asignan por odontólogo.</p>
+          </div>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => navigate('/odontologos')}>
+            Ir a Odontólogos
+          </button>
+        </div>
+      )}
 
       {/* Selector de odontólogo */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

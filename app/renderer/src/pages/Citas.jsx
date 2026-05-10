@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download, AlertCircle } from 'lucide-react';
 import { getCitas, getCitasPorFecha, addCita, updateCita, deleteCita, verificarDisponibilidad } from '../services/dbService';
 import { getPacientes } from '../services/dbService';
 import { getOdontologosActivos } from '../services/dbService';
@@ -9,6 +10,7 @@ import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
 
 function Citas() {
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const toast = useToast();
   const [citas, setCitas] = useState([]);
@@ -200,12 +202,39 @@ function Citas() {
             onClick={() => setShowModal(true)}
             className="btn btn-primary gap-2"
             type="button"
+            disabled={odontologos.length === 0 || pacientes.length === 0}
           >
             <Plus size={20} />
             Nueva Cita
           </button>
         </div>
       </div>
+
+      {/* Avisos de prerrequisitos */}
+      {!loading && odontologos.length === 0 && (
+        <div className="alert alert-warning shadow-sm">
+          <AlertCircle size={20} className="flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Primero necesitas registrar un odontólogo</p>
+            <p className="text-xs">Sin odontólogos no es posible agendar citas.</p>
+          </div>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => navigate('/odontologos')}>
+            Ir a Odontólogos
+          </button>
+        </div>
+      )}
+      {!loading && odontologos.length > 0 && pacientes.length === 0 && (
+        <div className="alert alert-warning shadow-sm">
+          <AlertCircle size={20} className="flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-sm">Primero registra un paciente</p>
+            <p className="text-xs">Sin pacientes no es posible agendar citas.</p>
+          </div>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => navigate('/pacientes')}>
+            Ir a Pacientes
+          </button>
+        </div>
+      )}
 
       {/* Selector de fecha */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

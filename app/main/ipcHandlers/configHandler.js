@@ -5,6 +5,34 @@ const { requireRol } = require('../auth/sesiones');
  * Registra los handlers IPC para configuración (campos dinámicos)
  */
 function register(ipcMain) {
+  // Estado de onboarding — qué pasos ya completó el usuario
+  ipcMain.handle('get-onboarding-status', async (_event, sessionId) => {
+    try {
+      requireRol(sessionId, 'admin');
+      const db = getDatabase();
+      const cfg = db.prepare('SELECT nombre_clinica, setup_completado FROM configuracion_clinica WHERE id = 1').get();
+      const counts = db.prepare(`
+        SELECT
+          (SELECT COUNT(*) FROM odontologos WHERE activo = 1) AS odontologos,
+          (SELECT COUNT(*) FROM horarios) AS horarios,
+          (SELECT COUNT(*) FROM pacientes WHERE activo = 1) AS pacientes,
+          (SELECT COUNT(*) FROM tratamientos WHERE activo = 1) AS tratamientos,
+          (SELECT COUNT(*) FROM citas) AS citas
+      `).get();
+      return {
+        clinicaConfigurada: !!(cfg?.setup_completado || (cfg?.nombre_clinica && cfg.nombre_clinica !== 'Mi Clínica')),
+        tieneOdontologos: counts.odontologos > 0,
+        tieneHorarios: counts.horarios > 0,
+        tienePacientes: counts.pacientes > 0,
+        tieneTratamientos: counts.tratamientos > 0,
+        tieneCitas: counts.citas > 0,
+      };
+    } catch (e) {
+      console.error('[get-onboarding-status]', e);
+      return null;
+    }
+  });
+
   // Obtener campos dinámicos por entidad (incluyendo base)
   ipcMain.handle('get-campos-dinamicos', async (event, entidad) => {
     try {
