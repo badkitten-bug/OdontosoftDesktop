@@ -306,15 +306,16 @@ function register(ipcMain) {
         const result = db
           .prepare(
             `INSERT INTO facturas
-             (numero, id_cita, id_paciente, fecha, subtotal, descuento, impuesto, total,
+             (numero, id_cita, id_paciente, id_odontologo, fecha, subtotal, descuento, impuesto, total,
               estado, tipo_comprobante, serie, correlativo,
               cliente_dni, cliente_ruc, cliente_razon_social)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             numero,
             idCita,
             cita.id_paciente,
+            cita.id_odontologo || null,
             new Date().toISOString().split('T')[0],
             montos.subtotal,
             montos.descuento,

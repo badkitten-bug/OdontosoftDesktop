@@ -125,6 +125,12 @@ function createTables() {
   } catch (e) {
     // La columna ya existe, ignorar
   }
+  try {
+    db.exec(`ALTER TABLE historial ADD COLUMN id_odontologo INTEGER REFERENCES odontologos(id) ON DELETE SET NULL`);
+  } catch (e) { /* ya existe */ }
+  try {
+    db.exec(`ALTER TABLE historial ADD COLUMN id_cita INTEGER REFERENCES citas(id) ON DELETE SET NULL`);
+  } catch (e) { /* ya existe */ }
 
   // Tabla de odontólogos
   db.exec(`
@@ -251,6 +257,7 @@ function createTables() {
     "ALTER TABLE facturas ADD COLUMN cliente_dni TEXT",
     "ALTER TABLE facturas ADD COLUMN cliente_ruc TEXT",
     "ALTER TABLE facturas ADD COLUMN cliente_razon_social TEXT",
+    "ALTER TABLE facturas ADD COLUMN id_odontologo INTEGER REFERENCES odontologos(id) ON DELETE SET NULL",
   ]) {
     try { db.exec(sql); } catch (_) { /* columna ya existe */ }
   }

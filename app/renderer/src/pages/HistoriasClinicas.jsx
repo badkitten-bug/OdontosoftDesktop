@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Trash2, Calendar, Eye, Search, FileText, Upload, Image, X, Printer } from 'lucide-react';
 import { getPacientes, getPaciente } from '../services/dbService';
 import { getHistorial, addHistorial, deleteHistorial } from '../services/dbService';
@@ -11,6 +12,7 @@ import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
 
 function HistoriasClinicas() {
+  const location = useLocation();
   const confirm = useConfirm();
   const toast = useToast();
   const [pacientes, setPacientes] = useState([]);
@@ -32,6 +34,8 @@ function HistoriasClinicas() {
     fecha: new Date().toISOString().split('T')[0],
     odontograma_data: null,
     datos_extra: {},
+    id_cita: null,
+    id_odontologo: null,
   });
 
   useEffect(() => {
@@ -39,6 +43,22 @@ function HistoriasClinicas() {
     initCamposBaseIfNeeded();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pre-llenado desde botón "Consulta" en Citas
+  useEffect(() => {
+    const fc = location.state?.fromCita;
+    if (!fc) return;
+    setSelectedPaciente(fc.id_paciente);
+    setFormData(prev => ({
+      ...prev,
+      fecha: fc.fecha || prev.fecha,
+      id_cita: fc.id_cita,
+      id_odontologo: fc.id_odontologo,
+    }));
+    setShowModal(true);
+    window.history.replaceState({}, '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     if (selectedPaciente) {
@@ -114,12 +134,14 @@ function HistoriasClinicas() {
     }
 
     try {
-      const resultado = await addHistorial({
+      await addHistorial({
         id_paciente: selectedPaciente,
         descripcion: formData.descripcion,
         fecha: formData.fecha,
         odontograma_data: formData.odontograma_data,
         datos_extra: formData.datos_extra,
+        id_odontologo: formData.id_odontologo || null,
+        id_cita: formData.id_cita || null,
       });
 
       await loadHistorial(selectedPaciente);
@@ -164,6 +186,8 @@ function HistoriasClinicas() {
       fecha: new Date().toISOString().split('T')[0],
       odontograma_data: null,
       datos_extra: {},
+      id_cita: null,
+      id_odontologo: null,
     });
     setOdontogramaData(null);
     setViewingEntrada(null);
@@ -403,9 +427,15 @@ function HistoriasClinicas() {
                 <div key={entrada.id} className="p-4 hover:bg-gray-50">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-2">
                         <Calendar size={16} />
                         <span>{new Date(entrada.fecha).toLocaleDateString('es-ES')}</span>
+                        {entrada.odontologo_nombre && (
+                          <span className="text-xs text-indigo-700 font-medium">Dr/a. {entrada.odontologo_nombre}</span>
+                        )}
+                        {entrada.id_cita && (
+                          <span className="badge badge-secondary badge-sm">Cita #{entrada.id_cita}</span>
+                        )}
                         {entrada.odontograma_data && (
                           <span className="badge badge-info badge-sm">Con Odontograma</span>
                         )}

@@ -9,7 +9,13 @@ function register(ipcMain) {
     try {
       const db = getDatabase();
       const registros = db
-        .prepare('SELECT * FROM historial WHERE id_paciente = ? ORDER BY fecha DESC, created_at DESC')
+        .prepare(
+          `SELECT h.*, o.nombre as odontologo_nombre
+           FROM historial h
+           LEFT JOIN odontologos o ON h.id_odontologo = o.id
+           WHERE h.id_paciente = ?
+           ORDER BY h.fecha DESC, h.created_at DESC`
+        )
         .all(idPaciente);
       
       // Parsear odontograma_data y datos_extra si existen
@@ -58,16 +64,19 @@ function register(ipcMain) {
   ipcMain.handle('add-historial', async (event, data) => {
     try {
       const db = getDatabase();
-      const { id_paciente, descripcion, fecha, odontograma_data, datos_extra } = data;
+      const { id_paciente, descripcion, fecha, odontograma_data, datos_extra, id_odontologo, id_cita } = data;
 
       const odontogramaJson = odontograma_data ? JSON.stringify(odontograma_data) : null;
       const datosExtraJson = datos_extra ? JSON.stringify(datos_extra) : '{}';
 
       const result = db
         .prepare(
-          'INSERT INTO historial (id_paciente, descripcion, fecha, odontograma_data, datos_extra) VALUES (?, ?, ?, ?, ?)'
+          `INSERT INTO historial
+           (id_paciente, descripcion, fecha, odontograma_data, datos_extra, id_odontologo, id_cita)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
         )
-        .run(id_paciente, descripcion, fecha, odontogramaJson, datosExtraJson);
+        .run(id_paciente, descripcion, fecha, odontogramaJson, datosExtraJson,
+             id_odontologo || null, id_cita || null);
 
       return {
         id: result.lastInsertRowid,
