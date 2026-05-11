@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Columns, Download, Users } from 'lucide-react';
+import { useState, useEffect, useId } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Edit, Trash2, Search, Columns, Download, Users, LayoutGrid, ChevronDown, ChevronRight } from 'lucide-react';
 import DynamicForm from '../components/DynamicForm';
 import ColumnSelector from '../components/ColumnSelector';
 import EmptyState from '../components/EmptyState';
@@ -10,8 +11,10 @@ import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
 
 function Pacientes() {
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const toast = useToast();
+  const anamId = useId();
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -26,6 +29,8 @@ function Pacientes() {
     dni: '',
     telefono: '',
   });
+  const [anamnesis, setAnamnesis] = useState({ alergias: '', medicamentos_actuales: '', enfermedades_cronicas: '', grupo_sanguineo: '', embarazo: '', observaciones_medicas: '' });
+  const [showAnamnesis, setShowAnamnesis] = useState(false);
 
   // Campos base del formulario
   const camposBase = [
@@ -160,6 +165,13 @@ function Pacientes() {
         return acc;
       }, {});
 
+      const anamnesisFiltrada = Object.fromEntries(
+        Object.entries(anamnesis).filter(([, v]) => v?.trim())
+      );
+      if (Object.keys(anamnesisFiltrada).length > 0) {
+        datosExtraFiltrados.anamnesis = anamnesisFiltrada;
+      }
+
       const pacienteData = {
         nombre: nombreTrimmed,
         dni: dni ? dni.trim() : null,
@@ -187,12 +199,14 @@ function Pacientes() {
 
   const handleEdit = (paciente) => {
     setEditingId(paciente.id);
+    const { anamnesis: anam, ...restoExtra } = paciente.datos_extra || {};
     setFormData({
       nombre: paciente.nombre || '',
       dni: paciente.dni || '',
       telefono: paciente.telefono || '',
-      ...paciente.datos_extra,
+      ...restoExtra,
     });
+    setAnamnesis({ alergias: '', medicamentos_actuales: '', enfermedades_cronicas: '', grupo_sanguineo: '', embarazo: '', observaciones_medicas: '', ...(anam || {}) });
     setShowModal(true);
   };
 
@@ -221,11 +235,9 @@ function Pacientes() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({
-      nombre: '',
-      dni: '',
-      telefono: '',
-    });
+    setFormData({ nombre: '', dni: '', telefono: '' });
+    setAnamnesis({ alergias: '', medicamentos_actuales: '', enfermedades_cronicas: '', grupo_sanguineo: '', embarazo: '', observaciones_medicas: '' });
+    setShowAnamnesis(false);
   };
 
   const filteredPacientes = pacientes.filter((paciente) => {
@@ -410,6 +422,15 @@ function Pacientes() {
                           <td key={columnaKey}>
                             <div className="flex gap-2">
                               <button
+                                onClick={() => navigate(`/pacientes/${paciente.id}`)}
+                                className="btn btn-sm btn-ghost gap-1 text-blue-600"
+                                type="button"
+                                title="Vista 360° del paciente"
+                              >
+                                <LayoutGrid size={16} />
+                                Perfil
+                              </button>
+                              <button
                                 onClick={() => handleEdit(paciente)}
                                 className="btn btn-sm btn-ghost gap-1"
                                 type="button"
@@ -459,6 +480,56 @@ function Pacientes() {
                 onChange={setFormData}
                 camposBase={camposBase}
               />
+
+              {/* Sección de Anamnesis */}
+              <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowAnamnesis(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700"
+                >
+                  <span>🩺 Ficha Médica / Anamnesis</span>
+                  {showAnamnesis ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                {showAnamnesis && (
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="form-control col-span-2">
+                        <label htmlFor={`${anamId}-alergias`} className="label"><span className="label-text text-xs font-medium">Alergias conocidas</span></label>
+                        <textarea id={`${anamId}-alergias`} className="textarea textarea-bordered textarea-sm w-full" rows={2} placeholder="Ej: Penicilina, látex, aspirina..." value={anamnesis.alergias} onChange={e => setAnamnesis(a => ({ ...a, alergias: e.target.value }))} />
+                      </div>
+                      <div className="form-control col-span-2">
+                        <label htmlFor={`${anamId}-medicamentos`} className="label"><span className="label-text text-xs font-medium">Medicamentos actuales</span></label>
+                        <textarea id={`${anamId}-medicamentos`} className="textarea textarea-bordered textarea-sm w-full" rows={2} placeholder="Medicamentos que toma actualmente..." value={anamnesis.medicamentos_actuales} onChange={e => setAnamnesis(a => ({ ...a, medicamentos_actuales: e.target.value }))} />
+                      </div>
+                      <div className="form-control col-span-2">
+                        <label htmlFor={`${anamId}-enfermedades`} className="label"><span className="label-text text-xs font-medium">Enfermedades crónicas</span></label>
+                        <textarea id={`${anamId}-enfermedades`} className="textarea textarea-bordered textarea-sm w-full" rows={2} placeholder="Diabetes, hipertensión, cardiopatías..." value={anamnesis.enfermedades_cronicas} onChange={e => setAnamnesis(a => ({ ...a, enfermedades_cronicas: e.target.value }))} />
+                      </div>
+                      <div className="form-control">
+                        <label htmlFor={`${anamId}-grupo`} className="label"><span className="label-text text-xs font-medium">Grupo sanguíneo</span></label>
+                        <select id={`${anamId}-grupo`} className="select select-bordered select-sm w-full" value={anamnesis.grupo_sanguineo} onChange={e => setAnamnesis(a => ({ ...a, grupo_sanguineo: e.target.value }))}>
+                          <option value="">Desconocido</option>
+                          {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label htmlFor={`${anamId}-embarazo`} className="label"><span className="label-text text-xs font-medium">Embarazo</span></label>
+                        <select id={`${anamId}-embarazo`} className="select select-bordered select-sm w-full" value={anamnesis.embarazo} onChange={e => setAnamnesis(a => ({ ...a, embarazo: e.target.value }))}>
+                          <option value="">No especificado</option>
+                          <option value="no_aplica">No aplica</option>
+                          <option value="si">Sí</option>
+                          <option value="no">No</option>
+                        </select>
+                      </div>
+                      <div className="form-control col-span-2">
+                        <label htmlFor={`${anamId}-obs`} className="label"><span className="label-text text-xs font-medium">Observaciones médicas</span></label>
+                        <textarea id={`${anamId}-obs`} className="textarea textarea-bordered textarea-sm w-full" rows={2} placeholder="Otras observaciones relevantes..." value={anamnesis.observaciones_medicas} onChange={e => setAnamnesis(a => ({ ...a, observaciones_medicas: e.target.value }))} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="modal-action">
                 <button

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Users, Calendar, Download, FileText } from 'lucide-react';
-import { getFacturas, getCitas, getPacientes, getTratamientosPopulares } from '../services/dbService';
+import { BarChart3, TrendingUp, DollarSign, Calendar, Download, FileText, UserCog } from 'lucide-react';
+import { getFacturas, getCitas, getPacientes, getTratamientosPopulares, getReportesOdontologos } from '../services/dbService';
 import { exportarAExcel } from '../utils/excelExporter';
 import { formatMoneda } from '../utils/formatters';
 import { useToast } from '../context/UIContext';
@@ -27,6 +27,7 @@ function Reportes() {
   const [ingresosPorMes, setIngresosPorMes] = useState([]);
   const [tratamientosMasComunes, setTratamientosMasComunes] = useState([]);
   const [estadoCitas, setEstadoCitas] = useState([]);
+  const [reportesOdontologos, setReportesOdontologos] = useState([]);
 
   useEffect(() => {
     loadReportes();
@@ -37,12 +38,14 @@ function Reportes() {
       setLoading(true);
       
       // Obtener datos
-      const [facturas, citas, pacientes, tratamientosPopulares] = await Promise.all([
+      const [facturas, citas, pacientes, tratamientosPopulares, odontologosReporte] = await Promise.all([
         getFacturas({ fecha_desde: fechaInicio, fecha_hasta: fechaFin }),
         getCitas({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
         getPacientes(),
         getTratamientosPopulares({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
+        getReportesOdontologos({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
       ]);
+      setReportesOdontologos(odontologosReporte);
 
       const citasFiltradas = citas;
 
@@ -56,7 +59,7 @@ function Reportes() {
         facturas: facturas.length,
         citas: citasFiltradas.length,
         pacientes: pacientes.length,
-        tratamientos: tratamientos.length,
+        tratamientos: tratamientosPopulares.length,
         promedioFactura,
         facturasPagadas: facturasPagadas.length,
         facturasPendientes: facturas.filter(f => f.estado === 'pendiente').length,
@@ -309,6 +312,51 @@ function Reportes() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Rendimiento por odontólogo */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <UserCog size={20} />
+          Rendimiento por Odontólogo
+        </h2>
+        {reportesOdontologos.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-4">Sin datos para este período.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table w-full">
+              <thead>
+                <tr>
+                  <th>Odontólogo</th>
+                  <th className="text-center">Citas</th>
+                  <th className="text-center">Completadas</th>
+                  <th className="text-center">Canceladas</th>
+                  <th className="text-right">Ingresos</th>
+                  <th className="text-center">Facturas pagadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportesOdontologos.map((o) => (
+                  <tr key={o.id}>
+                    <td>
+                      <p className="font-medium">{o.nombre}</p>
+                      {o.especialidad && <p className="text-xs text-gray-400">{o.especialidad}</p>}
+                    </td>
+                    <td className="text-center">{o.total_citas}</td>
+                    <td className="text-center">
+                      <span className="badge badge-success badge-sm">{o.citas_completadas}</span>
+                    </td>
+                    <td className="text-center">
+                      <span className="badge badge-error badge-sm">{o.citas_canceladas}</span>
+                    </td>
+                    <td className="text-right font-semibold text-green-700">{formatMoneda(o.ingresos)}</td>
+                    <td className="text-center">{o.facturas_pagadas}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Tratamientos más comunes */}

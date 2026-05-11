@@ -250,6 +250,47 @@ function register(ipcMain) {
     }
   });
 
+  // Reporte por odontólogo: citas, completadas e ingresos en un período
+  ipcMain.handle('get-reportes-odontologos', async (_event, filtros = {}) => {
+    try {
+      const db = getDatabase();
+      const { fecha_inicio, fecha_fin } = filtros;
+      const params = [];
+      let citaWhere = '1=1';
+      let facturaWhere = '1=1';
+      if (fecha_inicio) {
+        citaWhere += ' AND c.fecha >= ?';
+        facturaWhere += ' AND f.fecha >= ?';
+        params.push(fecha_inicio, fecha_inicio);
+      }
+      if (fecha_fin) {
+        citaWhere += ' AND c.fecha <= ?';
+        facturaWhere += ' AND f.fecha <= ?';
+        params.push(fecha_fin, fecha_fin);
+      }
+
+      return db.prepare(`
+        SELECT
+          o.id,
+          o.nombre,
+          o.especialidad,
+          COUNT(DISTINCT c.id)                                           AS total_citas,
+          COUNT(DISTINCT CASE WHEN c.estado = 'completada' THEN c.id END) AS citas_completadas,
+          COUNT(DISTINCT CASE WHEN c.estado = 'cancelada'  THEN c.id END) AS citas_canceladas,
+          COALESCE(SUM(CASE WHEN f.estado = 'pagada' THEN f.total ELSE 0 END), 0) AS ingresos,
+          COUNT(DISTINCT CASE WHEN f.estado = 'pagada' THEN f.id END)    AS facturas_pagadas
+        FROM odontologos o
+        LEFT JOIN citas c    ON c.id_odontologo = o.id    AND ${citaWhere}
+        LEFT JOIN facturas f ON f.id_odontologo = o.id    AND ${facturaWhere}
+        GROUP BY o.id, o.nombre, o.especialidad
+        ORDER BY ingresos DESC
+      `).all(...params);
+    } catch (error) {
+      console.error('Error al obtener reportes por odontólogo:', error);
+      throw error;
+    }
+  });
+
   // Obtener citas de un día específico
   ipcMain.handle('get-citas-por-fecha', async (event, fecha) => {
     try {

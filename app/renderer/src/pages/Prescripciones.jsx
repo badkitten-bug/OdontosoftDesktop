@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Plus, Edit, Trash2, Search, FileText, PlusCircle, X, Printer } from 'lucide-react';
 import { getPrescripcionesPaciente, getPrescripcion, addPrescripcion, updatePrescripcion, deletePrescripcion } from '../services/dbService';
 import { getPacientes, getPaciente } from '../services/dbService';
@@ -12,6 +13,7 @@ import { useConfirm, useToast } from '../context/UIContext';
 function Prescripciones() {
   const confirm = useConfirm();
   const toast = useToast();
+  const location = useLocation();
   const [prescripciones, setPrescripciones] = useState([]);
   const [pacientes, setPacientes] = useState([]);
   const [odontologos, setOdontologos] = useState([]);
@@ -44,6 +46,21 @@ function Prescripciones() {
       setPrescripciones([]);
     }
   }, [pacienteFiltro]);
+
+  useEffect(() => {
+    const fc = location.state?.fromCita;
+    if (!fc) return;
+    setPacienteFiltro(String(fc.id_paciente));
+    setFormData(prev => ({
+      ...prev,
+      id_paciente: fc.id_paciente,
+      id_cita: fc.id_cita || '',
+      id_odontologo: fc.id_odontologo || '',
+      fecha: fc.fecha || prev.fecha,
+    }));
+    setShowModal(true);
+    window.history.replaceState({}, '');
+  }, [location.state]);
 
   const loadPacientes = async () => {
     try {

@@ -22,6 +22,8 @@ import Promociones from './pages/Promociones';
 import Backups from './pages/Backups';
 import Configuracion from './pages/Configuracion';
 import Reportes from './pages/Reportes';
+import Recordatorios from './pages/Recordatorios';
+import VistaPaciente from './pages/VistaPaciente';
 import Licencia from './pages/Licencia';
 
 function AppContent() {
@@ -83,6 +85,8 @@ function AppContent() {
             <Route path="/backups" element={<ProtectedRoute requiredRole="admin"><Backups /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute requiredRole="admin"><Configuracion /></ProtectedRoute>} />
             <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/recordatorios" element={<ProtectedRoute><Recordatorios /></ProtectedRoute>} />
+            <Route path="/pacientes/:id" element={<ProtectedRoute><VistaPaciente /></ProtectedRoute>} />
             <Route path="/licencia" element={<ProtectedRoute requiredRole="admin"><Licencia /></ProtectedRoute>} />
           </Routes>
         </main>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download, AlertCircle, List, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, Clock, User, UserCog, CheckCircle, XCircle, Download, AlertCircle, List, FileText, Pill } from 'lucide-react';
 import { getCitas, getCitasPorFecha, addCita, updateCita, deleteCita, verificarDisponibilidad } from '../services/dbService';
 import { getPacientes } from '../services/dbService';
 import { getOdontologosActivos } from '../services/dbService';
@@ -406,25 +406,46 @@ function Citas() {
                           Tratamientos
                         </button>
                         {(cita.estado === 'completada' || cita.estado === 'en_proceso') && (
-                          <button
-                            type="button"
-                            onClick={() => navigate('/historias', {
-                              state: {
-                                fromCita: {
-                                  id_cita: cita.id,
-                                  id_paciente: cita.id_paciente,
-                                  id_odontologo: cita.id_odontologo,
-                                  fecha: cita.fecha,
-                                  paciente_nombre: cita.paciente_nombre,
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/historias', {
+                                state: {
+                                  fromCita: {
+                                    id_cita: cita.id,
+                                    id_paciente: cita.id_paciente,
+                                    id_odontologo: cita.id_odontologo,
+                                    fecha: cita.fecha,
+                                    paciente_nombre: cita.paciente_nombre,
+                                  },
                                 },
-                              },
-                            })}
-                            className="btn btn-sm btn-ghost gap-1 text-emerald-600"
-                            title="Registrar en historia clínica"
-                          >
-                            <FileText size={16} />
-                            Consulta
-                          </button>
+                              })}
+                              className="btn btn-sm btn-ghost gap-1 text-emerald-600"
+                              title="Registrar en historia clínica"
+                            >
+                              <FileText size={16} />
+                              Consulta
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/prescripciones', {
+                                state: {
+                                  fromCita: {
+                                    id_cita: cita.id,
+                                    id_paciente: cita.id_paciente,
+                                    id_odontologo: cita.id_odontologo,
+                                    fecha: cita.fecha,
+                                    paciente_nombre: cita.paciente_nombre,
+                                  },
+                                },
+                              })}
+                              className="btn btn-sm btn-ghost gap-1 text-violet-600"
+                              title="Crear prescripción desde esta cita"
+                            >
+                              <Pill size={16} />
+                              Recetar
+                            </button>
+                          </>
                         )}
                         <button
                           type="button"

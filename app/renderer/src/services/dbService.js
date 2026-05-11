@@ -79,6 +79,7 @@ export const deleteCita = (id) => window.electronAPI?.deleteCita(id) || Promise.
 
 // Tratamientos
 export const getTratamientosPopulares = (filtros = {}) => window.electronAPI?.getTratamientosPopulares(filtros) || Promise.resolve([]);
+export const getReportesOdontologos = (filtros = {}) => window.electronAPI?.getReportesOdontologos(filtros) || Promise.resolve([]);
 export const getTratamientos = () => window.electronAPI?.getTratamientos() || Promise.resolve([]);
 export const getTratamientosActivos = () => window.electronAPI?.getTratamientosActivos() || Promise.resolve([]);
 export const getTratamiento = (id) => window.electronAPI?.getTratamiento(id) || Promise.resolve(null);

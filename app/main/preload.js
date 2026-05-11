@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Tratamientos
   getTratamientosPopulares: noauth('get-tratamientos-populares'),
+  getReportesOdontologos: noauth('get-reportes-odontologos'),
   getTratamientos: noauth('get-tratamientos'),
   getTratamientosActivos: noauth('get-tratamientos-activos'),
   getTratamiento: noauth('get-tratamiento'),

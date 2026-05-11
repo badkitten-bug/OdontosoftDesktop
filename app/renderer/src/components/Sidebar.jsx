@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Users, Package, FileText, Settings, UserCog, Calendar, Stethoscope, Receipt,
   LayoutDashboard, ClipboardList, Pill, Shield, Tag, HardDrive, ChevronDown, ChevronRight, BarChart3,
-  KeyRound,
+  KeyRound, Bell,
 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
@@ -17,6 +17,7 @@ const menuCategories = [
     items: [
       { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'recepcionista', 'odontologo'] },
       { path: '/calendario', label: 'Calendario', icon: Calendar, roles: ['admin', 'recepcionista', 'odontologo'] },
+      { path: '/recordatorios', label: 'Recordatorios', icon: Bell, roles: ['admin', 'recepcionista', 'odontologo'] },
       { path: '/reportes', label: 'Reportes', icon: BarChart3, roles: ['admin', 'recepcionista'] },
     ],
   },
@@ -111,6 +112,7 @@ function Sidebar() {
               <li key={category.id} className="mb-2">
                 {/* Encabezado de categoría */}
                 <button
+                  type="button"
                   onClick={() => toggleCategory(category.id)}
                   className={`
                     w-full flex items-center justify-between px-4 py-2 rounded-lg transition-colors mb-1
@@ -177,7 +179,7 @@ function Sidebar() {
       <div className="p-4 border-t border-blue-500 text-xs text-blue-200">
         <p className="font-medium">{currentUser?.nombre || 'Usuario'}</p>
         <p className="text-blue-300">{currentUser?.rol || 'Sin rol'}</p>
-        <p className="mt-2">Versión 1.0.0</p>
+        <p className="mt-2">Versión 1.4.0</p>
         <p className="mt-1">© 2024 OdontoSoft</p>
       </div>
     </aside>

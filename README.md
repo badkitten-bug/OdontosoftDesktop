@@ -2,7 +2,7 @@
 
 Aplicación de escritorio profesional para clínicas odontológicas, desarrollada con **Electron + React + Node.js + SQLite + TailwindCSS + DaisyUI**. Diseñada para trabajar de forma local sin necesidad de conexión a internet.
 
-> **Versión actual: v1.3.4**
+> **Versión actual: v1.4.0**
 
 ## 📋 Características
 
@@ -17,13 +17,18 @@ Aplicación de escritorio profesional para clínicas odontológicas, desarrollad
 - ✅ **Almacén**: Control de inventario con registro de usuario que realizó el movimiento
 - ✅ **Historias Clínicas**: Registro con vinculación a cita y odontólogo; badge de cita de origen
 - ✅ **Calendario**: Vista mensual, semanal y diaria con cambio de estado de citas inline
-- ✅ **Reportes**: Ingresos reales, tratamientos más realizados (datos reales), conteo de citas con filtros de fecha
+- ✅ **Reportes**: Ingresos reales, tratamientos más realizados, conteo de citas y **rendimiento por odontólogo**
+- ✅ **Recordatorios**: Alertas automáticas de citas y pagos pendientes; recordatorios manuales; tabs Pendientes/Todos/Vistos
+- ✅ **Vista 360° del Paciente**: Perfil completo en `/pacientes/:id` con 6 pestañas (Resumen, Historia Clínica, Citas, Planes, Prescripciones, Facturas)
 - ✅ **Configuración**: Campos dinámicos personalizables para Pacientes, Odontólogos y Tratamientos
 
 ### Funcionalidades Avanzadas
 
 - ✅ **Trazabilidad Médico-Legal**: `id_odontologo` e `id_cita` registrados en historial y facturas
 - ✅ **Flujo Cita → Historia Clínica**: Botón "Consulta" en citas completadas/en proceso, pre-rellena el formulario de historia
+- ✅ **Flujo Cita → Prescripción**: Botón "Recetar" en citas completadas/en proceso, navega a Prescripciones con datos pre-rellenados
+- ✅ **Anamnesis Estructurada**: Sección colapsable en la ficha del paciente (alergias, medicamentos actuales, enfermedades crónicas, grupo sanguíneo, embarazo)
+- ✅ **Cupones en Facturación**: Validación y aplicación de cupones de descuento (monto fijo o porcentaje) al emitir comprobantes
 - ✅ **Campos Dinámicos**: Sistema flexible para agregar campos personalizados a múltiples módulos
 - ✅ **Verificación de Disponibilidad**: Sistema inteligente que verifica horarios antes de agendar citas
 - ✅ **Base de Datos Local**: SQLite almacenada localmente en el sistema del usuario
@@ -46,6 +51,7 @@ El sistema está diseñado para seguir un flujo completo de atención:
    - Agendar citas verificando disponibilidad del odontólogo
    - Estados: programada, confirmada, en_proceso, completada, cancelada
    - Botón **"Consulta"** en citas completadas/en proceso → navega directamente a Historia Clínica pre-rellenada
+   - Botón **"Recetar"** en citas completadas/en proceso → abre Prescripciones con datos pre-rellenados
 
 5. **Catálogo de Tratamientos** → Módulo "Tratamientos"
    - Crear catálogo de tratamientos con precios y duración
@@ -57,6 +63,7 @@ El sistema está diseñado para seguir un flujo completo de atención:
 7. **Facturación** → Módulo "Facturación"
    - Generar facturas desde citas completadas (incluye odontólogo responsable)
    - Registrar pagos (efectivo, tarjeta, transferencia, Yape, Plin)
+   - Aplicar cupones de descuento al crear comprobantes
    - Seguimiento de estado de facturas (pendiente, pagada, cancelada)
 
 8. **Calendario** → Módulo "Calendario"
@@ -68,6 +75,16 @@ El sistema está diseñado para seguir un flujo completo de atención:
    - Ingresos totales filtrados por rango de fecha
    - Tratamientos más realizados con conteo real desde la base de datos
    - Total de citas y nuevos pacientes en el período
+   - Rendimiento por odontólogo: citas totales, completadas, canceladas e ingresos
+
+10. **Recordatorios** → Módulo "Recordatorios"
+    - Auto-generar recordatorios de citas próximas y pagos pendientes
+    - Crear recordatorios manuales con fecha y descripción
+    - Marcar como visto o eliminar; tabs Pendientes / Todos / Vistos
+
+11. **Vista 360° del Paciente** → Desde tabla de Pacientes → botón "Perfil"
+    - Resumen con estadísticas rápidas (citas, facturas, planes, prescripciones)
+    - 6 pestañas: Resumen | Historia Clínica | Citas | Planes | Prescripciones | Facturas
 
 ## 🛠️ Tecnologías
 
@@ -178,6 +195,14 @@ Las migraciones se aplican automáticamente al iniciar la app con `ALTER TABLE I
 | `movimientos_inventario` | Movimientos de almacén con usuario responsable |
 | `historial` | Historias clínicas con `id_odontologo` e `id_cita` para trazabilidad |
 | `campos_config` | Configuración de campos dinámicos personalizados |
+| `prescripciones` | Recetas médicas vinculadas a paciente, cita y odontólogo |
+| `recordatorios` | Alertas de citas, pagos y eventos manuales |
+| `planes_tratamiento` | Planes multi-cita con presupuesto y seguimiento |
+| `planes_citas` | Citas individuales dentro de un plan de tratamiento |
+| `cupones` | Cupones de descuento (monto fijo o porcentaje) con control de usos |
+| `promociones` | Promociones base asociadas a cupones |
+| `archivos_historial` | Archivos adjuntos (imágenes, PDFs) vinculados a historias clínicas |
+| `usuarios` | Cuentas de acceso con roles (admin, recepcionista, odontólogo) |
 
 ## 📦 Build y Distribución
 

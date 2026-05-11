@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Receipt, DollarSign, Calendar, User, FileText, Edit, Trash2, Printer, Download } from 'lucide-react';
-import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago } from '../services/dbService';
+import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago, validarCupon, usarCupon } from '../services/dbService';
 import { getCitas, getPacientes, getPaciente, getTratamientosCita } from '../services/dbService';
 import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
@@ -47,6 +47,8 @@ function Facturacion() {
     observaciones: '',
   });
   const [pagoEditando, setPagoEditando] = useState(null);
+  const [codigoCupon, setCodigoCupon] = useState('');
+  const [cuponAplicado, setCuponAplicado] = useState(null);
 
   const metodosPago = [
     { value: 'efectivo', label: 'Efectivo' },
@@ -105,6 +107,32 @@ function Facturacion() {
     }
   };
 
+  const handleValidarCupon = async () => {
+    if (!codigoCupon.trim()) return;
+    try {
+      const result = await validarCupon(codigoCupon.trim().toUpperCase());
+      if (!result.valido) {
+        toast.warning(result.error || 'Cupón no válido.');
+        return;
+      }
+      const c = result.cupon;
+      setCuponAplicado(c);
+      const subtotalNum = parseFloat(formDataFactura.subtotal) || 0;
+      let descMonto = 0;
+      if (c.descuento_fijo > 0) {
+        descMonto = c.descuento_fijo;
+      } else if (c.descuento_porcentaje > 0) {
+        descMonto = (subtotalNum * c.descuento_porcentaje) / 100;
+      }
+      setFormDataFactura(prev => ({ ...prev, descuento: descMonto.toFixed(2) }));
+      const sym = getMonedaSimbolo();
+      const desc = c.descuento_fijo > 0 ? `${sym}${c.descuento_fijo}` : `${c.descuento_porcentaje}%`;
+      toast.success(`Cupón aplicado: ${desc} de descuento.`);
+    } catch (error) {
+      toast.error(humanizeError(error, 'Error al validar cupón.'));
+    }
+  };
+
   const handleCrearFacturaDirecta = async (e) => {
     e.preventDefault();
 
@@ -147,9 +175,14 @@ function Facturacion() {
       };
 
       await crearFacturaDirecta(facturaData);
+      if (cuponAplicado) {
+        await usarCupon(cuponAplicado.codigo);
+      }
       await loadFacturas();
       setShowModalFacturaDirecta(false);
       setFormDataFactura(ESTADO_FACTURA_INICIAL);
+      setCodigoCupon('');
+      setCuponAplicado(null);
       toast.success('Comprobante creado correctamente.');
     } catch (error) {
       console.error('Error al crear factura:', error);
@@ -570,6 +603,55 @@ function Facturacion() {
                   />
                 </div>
 
+                {/* Cupón de descuento */}
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Código de cupón</span>
+                    {cuponAplicado && (
+                      <span className="badge badge-success badge-sm">
+                        {cuponAplicado.descuento_fijo > 0
+                          ? `${simbolo}${cuponAplicado.descuento_fijo} aplicado`
+                          : `${cuponAplicado.descuento_porcentaje}% aplicado`}
+                      </span>
+                    )}
+                  </label>
+                  <div className="join w-full">
+                    <input
+                      type="text"
+                      className="input input-bordered join-item flex-1 uppercase"
+                      value={codigoCupon}
+                      onChange={(e) => {
+                        setCodigoCupon(e.target.value.toUpperCase());
+                        if (cuponAplicado) setCuponAplicado(null);
+                      }}
+                      placeholder="Ej: PROMO10"
+                      disabled={!!cuponAplicado}
+                    />
+                    {cuponAplicado ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline join-item"
+                        onClick={() => {
+                          setCuponAplicado(null);
+                          setCodigoCupon('');
+                          setFormDataFactura(prev => ({ ...prev, descuento: '' }));
+                        }}
+                      >
+                        Quitar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-outline join-item"
+                        onClick={handleValidarCupon}
+                        disabled={!codigoCupon.trim()}
+                      >
+                        Validar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="form-control">
                     <label className="label">
@@ -656,6 +738,8 @@ function Facturacion() {
                     onClick={() => {
                       setShowModalFacturaDirecta(false);
                       setFormDataFactura(ESTADO_FACTURA_INICIAL);
+                      setCodigoCupon('');
+                      setCuponAplicado(null);
                     }}
                     className="btn btn-ghost"
                   >
