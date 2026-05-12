@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Calendar, Download, FileText, UserCog } from 'lucide-react';
+import { BarChart3, TrendingUp, DollarSign, Calendar, Download, FileText, UserCog, AlertCircle } from 'lucide-react';
 import { getFacturas, getCitas, getPacientes, getTratamientosPopulares, getReportesOdontologos } from '../services/dbService';
 import { exportarAExcel } from '../utils/excelExporter';
 import { formatMoneda } from '../utils/formatters';
@@ -28,6 +28,8 @@ function Reportes() {
   const [tratamientosMasComunes, setTratamientosMasComunes] = useState([]);
   const [estadoCitas, setEstadoCitas] = useState([]);
   const [reportesOdontologos, setReportesOdontologos] = useState([]);
+  const [facturasPendientes, setFacturasPendientes] = useState([]);
+  const [tasaAsistencia, setTasaAsistencia] = useState({ asistieron: 0, noAsistieron: 0 });
 
   useEffect(() => {
     loadReportes();
@@ -89,6 +91,19 @@ function Reportes() {
       setIngresosPorMes(meses);
 
       setTratamientosMasComunes(tratamientosPopulares);
+
+      // Cartera de cobranza (pendientes en el período)
+      setFacturasPendientes(
+        facturas
+          .filter(f => f.estado === 'pendiente')
+          .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      );
+
+      // Tasa de asistencia (citas con asistio registrado)
+      setTasaAsistencia({
+        asistieron: citas.filter(c => c.asistio === 1).length,
+        noAsistieron: citas.filter(c => c.asistio === 0).length,
+      });
 
       // Estado de citas
       const estados = ['programada', 'confirmada', 'en_proceso', 'completada', 'cancelada'];
@@ -358,6 +373,87 @@ function Reportes() {
           </div>
         )}
       </div>
+
+      {/* Tasa de asistencia */}
+      {(tasaAsistencia.asistieron + tasaAsistencia.noAsistieron) > 0 && (() => {
+        const total = tasaAsistencia.asistieron + tasaAsistencia.noAsistieron;
+        const pctAsistio = Math.round((tasaAsistencia.asistieron / total) * 100);
+        const pctNoAsistio = 100 - pctAsistio;
+        return (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <Calendar size={20} />
+              Tasa de Asistencia
+            </h2>
+            <div className="grid grid-cols-3 gap-6 mb-4">
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <p className="text-3xl font-bold text-green-700">{pctAsistio}%</p>
+                <p className="text-sm text-gray-600 mt-1">Asistieron</p>
+                <p className="text-xs text-gray-400">{tasaAsistencia.asistieron} citas</p>
+              </div>
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <p className="text-3xl font-bold text-red-700">{pctNoAsistio}%</p>
+                <p className="text-sm text-gray-600 mt-1">No asistieron</p>
+                <p className="text-xs text-gray-400">{tasaAsistencia.noAsistieron} citas</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-3xl font-bold text-gray-700">{total}</p>
+                <p className="text-sm text-gray-600 mt-1">Total registrado</p>
+                <p className="text-xs text-gray-400">con asistencia marcada</p>
+              </div>
+            </div>
+            <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden flex">
+              <div className="bg-green-500 h-full" style={{ width: `${pctAsistio}%` }} />
+              <div className="bg-red-400 h-full" style={{ width: `${pctNoAsistio}%` }} />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Cartera de cobranza */}
+      {facturasPendientes.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-amber-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-1 flex items-center gap-2">
+            <AlertCircle size={20} className="text-amber-500" />
+            Cartera de Cobranza
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            {facturasPendientes.length} factura{facturasPendientes.length !== 1 ? 's' : ''} pendiente{facturasPendientes.length !== 1 ? 's' : ''} en el período —{' '}
+            total: <span className="font-semibold text-amber-700">{formatMoneda(facturasPendientes.reduce((s, f) => s + (f.total || 0), 0))}</span>
+          </p>
+          <div className="overflow-x-auto">
+            <table className="table w-full text-sm">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Paciente</th>
+                  <th>Comprobante</th>
+                  <th className="text-right">Total</th>
+                  <th className="text-center">Días pendiente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facturasPendientes.map(f => {
+                  const dias = Math.floor((Date.now() - new Date(f.fecha).getTime()) / 86400000);
+                  return (
+                    <tr key={f.id} className={dias > 30 ? 'bg-red-50' : dias > 7 ? 'bg-amber-50' : ''}>
+                      <td>{f.fecha}</td>
+                      <td className="font-medium">{f.paciente_nombre || '—'}</td>
+                      <td className="capitalize">{f.tipo_comprobante}</td>
+                      <td className="text-right font-semibold">{formatMoneda(f.total)}</td>
+                      <td className="text-center">
+                        <span className={`badge badge-sm ${dias > 30 ? 'badge-error' : dias > 7 ? 'badge-warning' : 'badge-ghost'}`}>
+                          {dias}d
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Tratamientos más comunes */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

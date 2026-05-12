@@ -75,16 +75,16 @@ function AppContent() {
             <Route path="/horarios" element={<ProtectedRoute requiredRole="admin"><Horarios /></ProtectedRoute>} />
             <Route path="/citas" element={<ProtectedRoute><Citas /></ProtectedRoute>} />
             <Route path="/tratamientos" element={<ProtectedRoute><Tratamientos /></ProtectedRoute>} />
-            <Route path="/planes-tratamiento" element={<ProtectedRoute><PlanesTratamiento /></ProtectedRoute>} />
-            <Route path="/prescripciones" element={<ProtectedRoute><Prescripciones /></ProtectedRoute>} />
-            <Route path="/facturacion" element={<ProtectedRoute><Facturacion /></ProtectedRoute>} />
-            <Route path="/almacen" element={<ProtectedRoute><Almacen /></ProtectedRoute>} />
-            <Route path="/historias" element={<ProtectedRoute><HistoriasClinicas /></ProtectedRoute>} />
+            <Route path="/planes-tratamiento" element={<ProtectedRoute allowedRoles={['admin', 'odontologo']}><PlanesTratamiento /></ProtectedRoute>} />
+            <Route path="/prescripciones" element={<ProtectedRoute allowedRoles={['admin', 'odontologo']}><Prescripciones /></ProtectedRoute>} />
+            <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin', 'recepcionista']}><Facturacion /></ProtectedRoute>} />
+            <Route path="/almacen" element={<ProtectedRoute allowedRoles={['admin', 'recepcionista']}><Almacen /></ProtectedRoute>} />
+            <Route path="/historias" element={<ProtectedRoute allowedRoles={['admin', 'odontologo']}><HistoriasClinicas /></ProtectedRoute>} />
             <Route path="/usuarios" element={<ProtectedRoute requiredRole="admin"><Usuarios /></ProtectedRoute>} />
-            <Route path="/promociones" element={<ProtectedRoute><Promociones /></ProtectedRoute>} />
+            <Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin', 'recepcionista']}><Promociones /></ProtectedRoute>} />
             <Route path="/backups" element={<ProtectedRoute requiredRole="admin"><Backups /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute requiredRole="admin"><Configuracion /></ProtectedRoute>} />
-            <Route path="/reportes" element={<ProtectedRoute><Reportes /></ProtectedRoute>} />
+            <Route path="/reportes" element={<ProtectedRoute allowedRoles={['admin', 'recepcionista']}><Reportes /></ProtectedRoute>} />
             <Route path="/recordatorios" element={<ProtectedRoute><Recordatorios /></ProtectedRoute>} />
             <Route path="/pacientes/:id" element={<ProtectedRoute><VistaPaciente /></ProtectedRoute>} />
             <Route path="/licencia" element={<ProtectedRoute requiredRole="admin"><Licencia /></ProtectedRoute>} />
