@@ -110,7 +110,7 @@ node scripts/generarLicencia.js --fingerprint=... --tipo=pro --email=... --expir
 6. Publish release.
 
 A partir de ahí, `https://github.com/odontosoft/desktop/releases/latest` apunta a
-ese release, y el botón "Descargar prueba gratis" de la landing lo encuentra solo.
+ese release, y el botón "Descargar gratis" de la landing lo encuentra solo.
 
 ### Automatizar con GitHub Actions (recomendado)
 
