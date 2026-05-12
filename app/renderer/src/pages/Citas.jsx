@@ -164,10 +164,21 @@ function Citas() {
     }
   };
 
-  const handleMarcarAsistencia = async (id, asistio) => {
+  const handleMarcarAsistencia = async (cita, asistio) => {
     try {
-      await updateCita(id, { asistio });
+      await updateCita(cita.id, {
+        id_paciente: cita.id_paciente,
+        id_odontologo: cita.id_odontologo,
+        fecha: cita.fecha,
+        hora_inicio: cita.hora_inicio,
+        hora_fin: cita.hora_fin,
+        estado: asistio ? cita.estado : 'cancelada',
+        asistio,
+        motivo: cita.motivo,
+        observaciones: cita.observaciones,
+      });
       await loadCitas();
+      toast.success(asistio ? 'Marcado como asistió.' : 'Marcado como no asistió.');
     } catch (error) {
       console.error('Error al marcar asistencia:', error);
       toast.error(humanizeError(error, 'No se pudo marcar asistencia.'));
@@ -375,10 +386,22 @@ function Citas() {
                       )}
                     </div>
                     <div className="flex flex-col gap-2 ml-4">
+                      {(cita.estado === 'programada' || cita.estado === 'confirmada') && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarcarAsistencia(cita, false)}
+                          className="btn btn-xs btn-error gap-1"
+                          title="El paciente no se presentó — cancela la cita"
+                        >
+                          <XCircle size={14} />
+                          No asistió
+                        </button>
+                      )}
                       {cita.estado === 'completada' && cita.asistio === null && (
                         <div className="flex gap-1">
                           <button
-                            onClick={() => handleMarcarAsistencia(cita.id, true)}
+                            type="button"
+                            onClick={() => handleMarcarAsistencia(cita, true)}
                             className="btn btn-xs btn-success gap-1"
                             title="Marcar como asistió"
                           >
@@ -386,7 +409,8 @@ function Citas() {
                             Asistió
                           </button>
                           <button
-                            onClick={() => handleMarcarAsistencia(cita.id, false)}
+                            type="button"
+                            onClick={() => handleMarcarAsistencia(cita, false)}
                             className="btn btn-xs btn-error gap-1"
                             title="Marcar como no asistió"
                           >

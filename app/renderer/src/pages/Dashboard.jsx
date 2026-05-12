@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Calendar, DollarSign, Users, Package, TrendingUp, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, DollarSign, Users, AlertCircle, Clock } from 'lucide-react';
 import { getCitasPorFecha, getFacturas, getPacientes, getProductosStockBajo } from '../services/dbService';
 import { formatMoneda } from '../utils/formatters';
 import OnboardingChecklist from '../components/OnboardingChecklist';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [citasHoy, setCitasHoy] = useState([]);
   const [ingresosMes, setIngresosMes] = useState(0);
   const [pacientesActivos, setPacientesActivos] = useState(0);
   const [productosStockBajo, setProductosStockBajo] = useState([]);
+  const [deudaPendiente, setDeudaPendiente] = useState({ monto: 0, count: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,6 +45,13 @@ function Dashboard() {
       // Productos con stock bajo
       const stockBajo = await getProductosStockBajo();
       setProductosStockBajo(stockBajo);
+
+      // Deuda pendiente (facturas no pagadas)
+      const pendientes = await getFacturas({ estado: 'pendiente' });
+      setDeudaPendiente({
+        monto: pendientes.reduce((sum, f) => sum + (f.total || 0), 0),
+        count: pendientes.length,
+      });
     } catch (error) {
       console.error('Error al cargar datos del dashboard:', error);
     } finally {
@@ -130,6 +140,23 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/facturacion')}
+          className="bg-white rounded-lg shadow-sm border border-amber-200 p-6 text-left hover:bg-amber-50 transition-colors w-full"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Deuda Pendiente</p>
+              <p className="text-3xl font-bold text-amber-700">{formatMoneda(deudaPendiente.monto)}</p>
+              <p className="text-xs text-gray-500 mt-1">{deudaPendiente.count} factura{deudaPendiente.count !== 1 ? 's' : ''} por cobrar</p>
+            </div>
+            <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+              <Clock className="text-amber-600" size={24} />
+            </div>
+          </div>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
