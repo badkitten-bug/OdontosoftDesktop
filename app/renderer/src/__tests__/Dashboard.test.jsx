@@ -10,6 +10,7 @@ jest.mock('../services/dbService', () => ({
   getFacturas: jest.fn(),
   getPacientes: jest.fn(),
   getProductosStockBajo: jest.fn(),
+  getOnboardingStatus: jest.fn(),
 }));
 
 const renderWithProviders = (ui) => {
@@ -29,6 +30,7 @@ describe('Dashboard Component', () => {
     dbService.getFacturas.mockResolvedValue([]);
     dbService.getPacientes.mockResolvedValue([]);
     dbService.getProductosStockBajo.mockResolvedValue([]);
+    dbService.getOnboardingStatus.mockResolvedValue(null);
     localStorage.setItem('currentUser', JSON.stringify({ id: 1, username: 'admin', rol: 'admin' }));
   });
 
