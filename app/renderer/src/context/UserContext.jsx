@@ -7,6 +7,7 @@ import {
   getEstadoSetup,
   getConfiguracionClinica,
   getLicencia,
+  getUsuarios,
 } from '../services/dbService';
 import { setClinicConfigCache } from '../utils/formatters';
 
@@ -18,6 +19,7 @@ export function UserProvider({ children }) {
   const [setupCompletado, setSetupCompletado] = useState(true);
   const [licencia, setLicencia] = useState({ tipo: 'demo' });
   const [hydrating, setHydrating] = useState(true);
+  const [totalUsuarios, setTotalUsuarios] = useState(1);
 
   const refreshLicencia = useCallback(async () => {
     try {
@@ -30,14 +32,16 @@ export function UserProvider({ children }) {
 
   const refreshSetup = useCallback(async () => {
     try {
-      const [estado, cfg, lic] = await Promise.all([
+      const [estado, cfg, lic, usuarios] = await Promise.all([
         getEstadoSetup(),
         getConfiguracionClinica(),
         getLicencia(),
+        getUsuarios().catch(() => []),
       ]);
       setSetupCompletado(!!estado?.setupCompletado);
       if (cfg) setClinicConfigCache(cfg);
       if (lic) setLicencia(lic);
+      setTotalUsuarios(Array.isArray(usuarios) ? usuarios.length : 1);
     } catch (e) {
       console.error('Error consultando estado de setup:', e);
     }
@@ -106,6 +110,7 @@ export function UserProvider({ children }) {
       setupCompletado,
       licencia,
       hydrating,
+      totalUsuarios,
       onLoginSuccess,
       logout,
       refreshSetup,
@@ -117,6 +122,7 @@ export function UserProvider({ children }) {
       setupCompletado,
       licencia,
       hydrating,
+      totalUsuarios,
       onLoginSuccess,
       logout,
       refreshSetup,

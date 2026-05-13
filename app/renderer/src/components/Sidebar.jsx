@@ -54,7 +54,7 @@ const menuCategories = [
     items: [
       { path: '/odontologos', label: 'Odontólogos', icon: UserCog, roles: ['admin'] },
       { path: '/horarios', label: 'Horarios', icon: Calendar, roles: ['admin'] },
-      { path: '/usuarios', label: 'Usuarios', icon: Shield, roles: ['admin'] },
+      { path: '/usuarios', label: 'Usuarios', icon: Shield, roles: ['admin'], multiUserOnly: true },
       { path: '/backups', label: 'Backups', icon: HardDrive, roles: ['admin'] },
       { path: '/licencia', label: 'Licencia', icon: KeyRound, roles: ['admin'] },
       { path: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
@@ -64,7 +64,7 @@ const menuCategories = [
 
 function Sidebar() {
   const location = useLocation();
-  const { currentUser, licencia } = useUser();
+  const { currentUser, licencia, totalUsuarios } = useUser();
   const [expandedCategories, setExpandedCategories] = useState({
     principal: true,
     clinica: true,
@@ -87,7 +87,10 @@ function Sidebar() {
       .filter(category => category.roles.includes(currentUser.rol))
       .map(category => ({
         ...category,
-        items: category.items.filter(item => item.roles.includes(currentUser.rol)),
+        items: category.items.filter(item =>
+          item.roles.includes(currentUser.rol) &&
+          (!item.multiUserOnly || totalUsuarios > 1)
+        ),
       }))
       .filter(category => category.items.length > 0);
   };
@@ -173,6 +176,17 @@ function Sidebar() {
           title="Activa tu licencia"
         >
           <KeyRound size={14} /> Versión Demo
+        </Link>
+      )}
+
+      {totalUsuarios <= 1 && currentUser?.rol === 'admin' && (
+        <Link
+          to="/usuarios"
+          className="mx-3 mb-2 px-3 py-2 rounded-lg bg-blue-500/60 hover:bg-blue-500 text-white text-xs font-medium text-center transition flex items-center justify-center gap-1"
+          title="Crear cuentas para tu recepcionista u otros odontólogos"
+        >
+          <Shield size={13} />
+          Invitar al equipo →
         </Link>
       )}
 

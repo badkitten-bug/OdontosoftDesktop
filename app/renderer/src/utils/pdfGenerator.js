@@ -145,115 +145,152 @@ export function generarPDFFactura(factura, paciente, pagos = [], config = null, 
  */
 export function generarPDFPrescripcion(prescripcion, paciente, odontologo, config = null) {
   const doc = new jsPDF();
+  const pageW = doc.internal.pageSize.width;
+  const pageH = doc.internal.pageSize.height;
+
   const clinicaNombre = config?.nombre_clinica || 'Clínica Odontológica';
   const clinicaDireccion = config?.direccion || '';
+  const clinicaTelefono = config?.telefono || '';
+  const clinicaEmail = config?.email || '';
 
-  // Encabezado
-  doc.setFontSize(20);
-  doc.text('PRESCRIPCIÓN MÉDICA', 105, 20, { align: 'center' });
+  // Borde exterior
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.5);
+  doc.rect(8, 8, pageW - 16, pageH - 16);
 
+  // Header azul
+  doc.setFillColor(59, 130, 246);
+  doc.rect(8, 8, pageW - 16, 26, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text(clinicaNombre, pageW / 2, 19, { align: 'center' });
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const subHeader = [clinicaDireccion, clinicaTelefono, clinicaEmail].filter(Boolean).join('  |  ');
+  if (subHeader) doc.text(subHeader, pageW / 2, 27, { align: 'center' });
+
+  // Título + número
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(12);
-  doc.text(clinicaNombre, 105, 30, { align: 'center' });
-  if (clinicaDireccion) doc.text(clinicaDireccion, 105, 36, { align: 'center' });
-  
-  // Información de la prescripción
-  doc.setFontSize(10);
-  doc.text(`Fecha: ${new Date(prescripcion.fecha).toLocaleDateString('es-ES')}`, 20, 45);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRESCRIPCIÓN MÉDICA', pageW / 2, 43, { align: 'center' });
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  const numStr = `N° ${String(prescripcion.id || '').padStart(4, '0')}`;
+  const fechaStr = `Fecha: ${new Date(`${prescripcion.fecha}T12:00:00`).toLocaleDateString('es-PE')}`;
+  doc.text(numStr, 14, 51);
+  doc.text(fechaStr, pageW - 14, 51, { align: 'right' });
   if (prescripcion.fecha_vencimiento) {
-    doc.text(`Válida hasta: ${new Date(prescripcion.fecha_vencimiento).toLocaleDateString('es-ES')}`, 20, 51);
+    const vencStr = `Válida hasta: ${new Date(`${prescripcion.fecha_vencimiento}T12:00:00`).toLocaleDateString('es-PE')}`;
+    doc.text(vencStr, pageW - 14, 56, { align: 'right' });
   }
-  
-  // Información del paciente
-  doc.setFontSize(12);
-  doc.text('DATOS DEL PACIENTE', 20, 65);
-  doc.setFontSize(10);
-  doc.text(`Nombre: ${paciente?.nombre || 'N/A'}`, 20, 72);
-  if (paciente?.dni) {
-    doc.text(`DNI: ${paciente.dni}`, 20, 78);
+
+  // Separador
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(14, 60, pageW - 14, 60);
+
+  // Paciente | Odontólogo
+  let y = 68;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PACIENTE', 14, y);
+  doc.text('PRESCRIPTOR', pageW / 2 + 4, y);
+  doc.setFont('helvetica', 'normal');
+  y += 6;
+  doc.text(`Nombre: ${paciente?.nombre || '—'}`, 14, y);
+  doc.text(`Dr./Dra.: ${odontologo?.nombre || '—'}`, pageW / 2 + 4, y);
+  y += 5;
+  if (paciente?.dni || odontologo?.matricula) {
+    if (paciente?.dni) doc.text(`DNI: ${paciente.dni}`, 14, y);
+    if (odontologo?.matricula) doc.text(`COP: ${odontologo.matricula}`, pageW / 2 + 4, y);
+    y += 5;
   }
-  if (paciente?.telefono) {
-    doc.text(`Teléfono: ${paciente.telefono}`, 20, 84);
+  if (paciente?.telefono || odontologo?.especialidad) {
+    if (paciente?.telefono) doc.text(`Tel.: ${paciente.telefono}`, 14, y);
+    if (odontologo?.especialidad) doc.text(`Esp.: ${odontologo.especialidad}`, pageW / 2 + 4, y);
+    y += 5;
   }
-  
-  // Información del odontólogo
-  doc.setFontSize(12);
-  doc.text('ODONTÓLOGO', 120, 65);
-  doc.setFontSize(10);
-  doc.text(`Dr./Dra. ${odontologo?.nombre || 'N/A'}`, 120, 72);
-  if (odontologo?.matricula) {
-    doc.text(`Matrícula: ${odontologo.matricula}`, 120, 78);
-  }
-  if (odontologo?.especialidad) {
-    doc.text(`Especialidad: ${odontologo.especialidad}`, 120, 84);
-  }
-  
+
+  // Separador + Rp.
+  y += 3;
+  doc.line(14, y, pageW - 14, y);
+  y += 8;
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text('Rp.', 14, y);
+  doc.setTextColor(0, 0, 0);
+  y += 6;
+
   // Medicamentos
-  let yPos = 100;
-  doc.setFontSize(12);
-  doc.text('MEDICAMENTOS', 20, yPos);
-  yPos += 10;
-  
-  let medicamentos = [];
+  let meds = [];
   try {
-    medicamentos = typeof prescripcion.medicamentos === 'string' 
-      ? JSON.parse(prescripcion.medicamentos) 
+    meds = typeof prescripcion.medicamentos === 'string'
+      ? JSON.parse(prescripcion.medicamentos)
       : prescripcion.medicamentos;
-    if (!Array.isArray(medicamentos)) medicamentos = [];
-  } catch (e) {
-    medicamentos = [];
-  }
-  
-  if (medicamentos.length > 0) {
-    const medicamentosData = medicamentos.map((med, idx) => [
-      (idx + 1).toString(),
-      med.nombre || '-',
-      med.dosis || '-',
-      med.frecuencia || '-',
-      med.duracion || '-',
-    ]);
-    
+    if (!Array.isArray(meds)) meds = [];
+  } catch (_) { meds = []; }
+
+  if (meds.length > 0) {
     autoTable(doc, {
-      startY: yPos,
-      head: [['#', 'Medicamento', 'Dosis', 'Frecuencia', 'Duración']],
-      body: medicamentosData,
-      theme: 'striped',
-      headStyles: { fillColor: [59, 130, 246] },
-      styles: { fontSize: 9 },
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Medicamento', 'Dosis', 'Frecuencia', 'Duración']],
+      body: meds.map(m => [m.nombre || '—', m.dosis || '—', m.frecuencia || '—', m.duracion || '—']),
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], fontSize: 8, halign: 'center' },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { fontStyle: 'bold' } },
     });
-    
-    yPos = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 8;
   } else {
-    doc.text('No hay medicamentos registrados', 20, yPos);
-    yPos += 10;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('(Sin medicamentos registrados)', 14, y + 4);
+    y += 12;
   }
-  
+
   // Instrucciones
   if (prescripcion.instrucciones) {
-    yPos += 5;
-    doc.setFontSize(12);
-    doc.text('INSTRUCCIONES', 20, yPos);
-    yPos += 6;
-    doc.setFontSize(10);
-    const splitInstrucciones = doc.splitTextToSize(prescripcion.instrucciones, 170);
-    doc.text(splitInstrucciones, 20, yPos);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Instrucciones:', 14, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(prescripcion.instrucciones, pageW - 28);
+    doc.text(lines, 14, y);
   }
-  
-  // Firma
-  const pageHeight = doc.internal.pageSize.height;
-  yPos = pageHeight - 40;
-  doc.setFontSize(10);
-  doc.text('_________________________', 20, yPos);
-  yPos += 6;
-  doc.text(`Dr./Dra. ${odontologo?.nombre || 'N/A'}`, 20, yPos);
-  if (odontologo?.matricula) {
-    yPos += 6;
-    doc.text(`Matrícula: ${odontologo.matricula}`, 20, yPos);
-  }
-  
-  // Pie de página
-  doc.setFontSize(8);
-  doc.text('Este documento fue generado por OdontoSoft Desktop', 105, pageHeight - 10, { align: 'center' });
-  
+
+  // Área de firma (anclada al fondo)
+  const sigY = pageH - 42;
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, sigY, pageW - 14, sigY);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('_______________________', 14, sigY + 12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Dr./Dra. ${odontologo?.nombre || '—'}`, 14, sigY + 18);
+  doc.setFont('helvetica', 'normal');
+  if (odontologo?.matricula) doc.text(`COP: ${odontologo.matricula}`, 14, sigY + 23);
+
+  // Círculo sello
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.circle(pageW - 30, sigY + 14, 13);
+  doc.setFontSize(7);
+  doc.setTextColor(160, 160, 160);
+  doc.text('SELLO', pageW - 30, sigY + 13, { align: 'center' });
+  doc.text('MÉDICO', pageW - 30, sigY + 18, { align: 'center' });
+
+  // Footer
+  doc.setTextColor(150, 150, 150);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Generado por OdontoSoft Desktop', pageW / 2, pageH - 12, { align: 'center' });
+
   return doc;
 }
 
