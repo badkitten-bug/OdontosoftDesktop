@@ -295,6 +295,170 @@ export function generarPDFPrescripcion(prescripcion, paciente, odontologo, confi
 }
 
 /**
+ * Genera un PDF de presupuesto de tratamiento
+ */
+export function generarPDFPresupuesto(plan, paciente, config = null) {
+  const doc = new jsPDF();
+  const pageW = doc.internal.pageSize.width;
+  const pageH = doc.internal.pageSize.height;
+
+  const clinicaNombre = config?.nombre_clinica || 'Clínica Odontológica';
+  const clinicaDireccion = config?.direccion || '';
+  const clinicaTelefono = config?.telefono || '';
+  const clinicaEmail = config?.email || '';
+  const simbolo = config?.moneda_simbolo || 'S/';
+
+  // Borde exterior
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.5);
+  doc.rect(8, 8, pageW - 16, pageH - 16);
+
+  // Header azul
+  doc.setFillColor(59, 130, 246);
+  doc.rect(8, 8, pageW - 16, 26, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text(clinicaNombre, pageW / 2, 19, { align: 'center' });
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const subHeader = [clinicaDireccion, clinicaTelefono, clinicaEmail].filter(Boolean).join('  |  ');
+  if (subHeader) doc.text(subHeader, pageW / 2, 27, { align: 'center' });
+
+  // Título
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PRESUPUESTO DE TRATAMIENTO', pageW / 2, 43, { align: 'center' });
+
+  // N° + fechas
+  const today = new Date();
+  const validUntil = new Date(today);
+  validUntil.setDate(validUntil.getDate() + 30);
+  const dateStr = today.toLocaleDateString('es-PE');
+  const validStr = `Válido hasta: ${validUntil.toLocaleDateString('es-PE')}`;
+  const numStr = `N° ${String(plan.id || '').padStart(4, '0')}`;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(numStr, 14, 51);
+  doc.text(`Fecha: ${dateStr}`, pageW - 14, 51, { align: 'right' });
+  doc.text(validStr, pageW - 14, 56, { align: 'right' });
+
+  // Separador
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(14, 61, pageW - 14, 61);
+
+  // PACIENTE | PLAN
+  let y = 69;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PACIENTE', 14, y);
+  doc.text('PLAN DE TRATAMIENTO', pageW / 2 + 4, y);
+  doc.setFont('helvetica', 'normal');
+  y += 6;
+  doc.text(`Nombre: ${paciente?.nombre || '—'}`, 14, y);
+  doc.text(`Plan: ${plan.nombre || '—'}`, pageW / 2 + 4, y);
+  y += 5;
+  if (paciente?.dni) doc.text(`DNI: ${paciente.dni}`, 14, y);
+  if (plan.fecha_inicio) {
+    doc.text(`Inicio: ${new Date(`${plan.fecha_inicio}T12:00:00`).toLocaleDateString('es-PE')}`, pageW / 2 + 4, y);
+  }
+  y += 5;
+  if (paciente?.telefono) doc.text(`Tel.: ${paciente.telefono}`, 14, y);
+  if (plan.fecha_fin_estimada) {
+    doc.text(`Fin estimado: ${new Date(`${plan.fecha_fin_estimada}T12:00:00`).toLocaleDateString('es-PE')}`, pageW / 2 + 4, y);
+  }
+  y += 8;
+
+  // Separador
+  doc.line(14, y, pageW - 14, y);
+  y += 8;
+
+  // Tabla de tratamiento
+  const precio = plan.tratamiento_precio ?? 0;
+  const sesiones = Array.isArray(plan.citas) ? plan.citas.length : 1;
+  const total = precio * sesiones;
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: 14, right: 14 },
+    head: [['Tratamiento', 'Descripción', `Precio (${simbolo})`, 'Sesiones', `Total (${simbolo})`]],
+    body: [[
+      plan.tratamiento_nombre || 'Tratamiento odontológico',
+      plan.descripcion || '—',
+      precio > 0 ? precio.toFixed(2) : 'A consultar',
+      sesiones.toString(),
+      precio > 0 ? total.toFixed(2) : 'A consultar',
+    ]],
+    theme: 'grid',
+    headStyles: { fillColor: [59, 130, 246], fontSize: 8, halign: 'center' },
+    bodyStyles: { fontSize: 9 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 40 },
+      2: { halign: 'right' },
+      3: { halign: 'center' },
+      4: { halign: 'right', fontStyle: 'bold' },
+    },
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  // Observaciones
+  if (plan.observaciones) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Observaciones:', 14, y);
+    y += 5;
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(plan.observaciones, pageW - 28);
+    doc.text(lines, 14, y);
+    y += lines.length * 5 + 4;
+  }
+
+  // Total en caja
+  if (precio > 0) {
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.4);
+    doc.rect(pageW - 70, y, 56, 12);
+    doc.setFillColor(239, 246, 255);
+    doc.rect(pageW - 70, y, 56, 12, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(37, 99, 235);
+    doc.text(`TOTAL: ${simbolo} ${total.toFixed(2)}`, pageW - 42, y + 8, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  // Sección de aceptación (anclada al fondo)
+  const sigY = pageH - 50;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(14, sigY, pageW - 14, sigY);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  const notice = 'Este presupuesto tiene una validez de 30 días. Los precios pueden variar según el diagnóstico final.';
+  const noticeLines = doc.splitTextToSize(notice, pageW - 28);
+  doc.text(noticeLines, 14, sigY + 6);
+
+  doc.setTextColor(0, 0, 0);
+  const sigLineY = sigY + 22;
+  doc.line(14, sigLineY, 80, sigLineY);
+  doc.line(pageW - 80, sigLineY, pageW - 14, sigLineY);
+  doc.setFontSize(8);
+  doc.text('Firma y fecha del paciente', 47, sigLineY + 5, { align: 'center' });
+  doc.text('Firma y sello del responsable', pageW - 47, sigLineY + 5, { align: 'center' });
+
+  // Footer
+  doc.setTextColor(150, 150, 150);
+  doc.setFontSize(7);
+  doc.text('Generado por OdontoSoft Desktop', pageW / 2, pageH - 12, { align: 'center' });
+
+  return doc;
+}
+
+/**
  * Genera un PDF de historia clínica
  */
 export function generarPDFHistoriaClinica(entrada, paciente, odontologo = null) {

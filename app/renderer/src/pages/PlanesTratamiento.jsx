@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, CheckCircle, Download } from 'lucide-react';
 import { getTodosPlanes, getPlanesPaciente, getPlan, addPlanTratamiento, updatePlanTratamiento, deletePlanTratamiento, addCitaPlan, marcarCitaPlanCompletada } from '../services/dbService';
-import { getPacientes } from '../services/dbService';
+import { getPacientes, getPaciente } from '../services/dbService';
 import { getTratamientosActivos } from '../services/dbService';
 import { getCitas } from '../services/dbService';
+import { getConfiguracionClinica } from '../services/dbService';
+import { generarPDFPresupuesto } from '../utils/pdfGenerator';
 import { humanizeError } from '../utils/humanizeError';
 import { useConfirm, useToast } from '../context/UIContext';
 
@@ -186,6 +188,22 @@ function PlanesTratamiento() {
     }
   };
 
+  const handlePresupuestoPDF = async (plan) => {
+    try {
+      const [planCompleto, pacienteData, config] = await Promise.all([
+        getPlan(plan.id),
+        getPaciente(plan.id_paciente),
+        getConfiguracionClinica(),
+      ]);
+      const planConPrecio = { ...planCompleto, tratamiento_precio: plan.tratamiento_precio };
+      const doc = generarPDFPresupuesto(planConPrecio, pacienteData, config);
+      const nombre = (pacienteData?.nombre || 'Paciente').replace(/\s+/g, '_');
+      doc.save(`Presupuesto_${nombre}_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (error) {
+      toast.error(humanizeError(error, 'No se pudo generar el presupuesto.'));
+    }
+  };
+
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingId(null);
@@ -318,6 +336,15 @@ function PlanesTratamiento() {
                     )}
                   </div>
                   <div className="flex gap-2 ml-4">
+                    <button
+                      type="button"
+                      onClick={() => handlePresupuestoPDF(plan)}
+                      className="btn btn-sm btn-ghost gap-1"
+                      title="Descargar presupuesto PDF"
+                    >
+                      <Download size={16} />
+                      Presupuesto
+                    </button>
                     <button
                       onClick={() => handleAbrirCitas(plan)}
                       className="btn btn-sm btn-ghost gap-1"
