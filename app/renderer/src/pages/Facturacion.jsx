@@ -1,6 +1,7 @@
 import { useState, useEffect, useId } from 'react';
-import { Plus, Search, Receipt, DollarSign, Edit, Trash2, Printer, Ban } from 'lucide-react';
-import { getFacturas, getFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago, validarCupon, usarCupon, anularFactura } from '../services/dbService';
+import { Plus, Search, Receipt, DollarSign, Edit, Trash2, Printer, Ban, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import { getFacturas, getFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago, validarCupon, usarCupon, anularFactura, getNotasCredito } from '../services/dbService';
+import { exportarFacturas } from '../utils/excelExporter';
 import { getCitas, getPacientes, getPaciente, getTratamientosCita } from '../services/dbService';
 import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
@@ -52,6 +53,8 @@ function Facturacion() {
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [anulando, setAnulando] = useState(false);
   const motivoAnulacionId = useId();
+  const [notasCredito, setNotasCredito] = useState([]);
+  const [showNCs, setShowNCs] = useState(false);
 
   const metodosPago = [
     { value: 'efectivo', label: 'Efectivo' },
@@ -65,7 +68,17 @@ function Facturacion() {
     loadFacturas();
     loadCitas();
     loadPacientes();
+    loadNotasCredito();
   }, []);
+
+  const loadNotasCredito = async () => {
+    try {
+      const data = await getNotasCredito({});
+      setNotasCredito(data);
+    } catch (error) {
+      console.error('Error al cargar notas de crédito:', error);
+    }
+  };
 
   const loadFacturas = async () => {
     try {
@@ -339,6 +352,15 @@ function Facturacion() {
     return pagos.reduce((sum, pago) => sum + pago.monto, 0);
   };
 
+  const handleExportar = () => {
+    if (filteredFacturas.length === 0) {
+      toast.warning('No hay comprobantes para exportar.');
+      return;
+    }
+    exportarFacturas(filteredFacturas);
+    toast.success(`${filteredFacturas.length} comprobante(s) exportados a Excel.`);
+  };
+
   const handleAnularFactura = async () => {
     if (!facturaAAnular) return;
     if (!motivoAnulacion.trim()) {
@@ -383,6 +405,15 @@ function Facturacion() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-800">Facturación</h1>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleExportar}
+            className="btn btn-outline gap-2"
+            title="Exportar a Excel"
+          >
+            <Download size={18} />
+            Exportar
+          </button>
           <button
             type="button"
             onClick={() => setShowModalFacturaDirecta(true)}
@@ -836,6 +867,53 @@ function Facturacion() {
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => setShowModalFactura(false)}></div>
+        </div>
+      )}
+
+      {/* Sección de Notas de Crédito */}
+      {notasCredito.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+            onClick={() => setShowNCs(prev => !prev)}
+          >
+            <div className="flex items-center gap-2">
+              <Ban size={16} className="text-red-500" />
+              <span className="font-semibold text-gray-700">
+                Notas de Crédito ({notasCredito.length})
+              </span>
+            </div>
+            {showNCs ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+          </button>
+          {showNCs && (
+            <div className="overflow-x-auto border-t border-gray-100">
+              <table className="table w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th>N° NC</th>
+                    <th>Comprobante Original</th>
+                    <th>Paciente</th>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notasCredito.map((nc) => (
+                    <tr key={nc.id} className="hover:bg-gray-50">
+                      <td className="font-medium text-red-600">{nc.numero}</td>
+                      <td className="text-gray-500">{nc.factura_numero}</td>
+                      <td>{nc.paciente_nombre}</td>
+                      <td>{formatFecha(nc.fecha)}</td>
+                      <td>{formatMoneda(nc.total)}</td>
+                      <td className="max-w-xs truncate text-gray-600">{nc.motivo}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

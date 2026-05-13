@@ -31,8 +31,8 @@ function Dashboard() {
       const fechaInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
       const fechaFin = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
       const facturas = await getFacturas({
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
+        fecha_desde: fechaInicio,
+        fecha_hasta: fechaFin,
         estado: 'pagada',
       });
       const total = facturas.reduce((sum, f) => sum + (f.total || 0), 0);
