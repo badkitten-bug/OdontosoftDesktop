@@ -501,6 +501,83 @@ function register(ipcMain) {
       throw error;
     }
   });
+
+  // Anular factura: crea una nota de crédito y marca la factura como anulada
+  ipcMain.handle('anular-factura', async (_event, id, motivo) => {
+    try {
+      const db = getDatabase();
+      const transaccion = db.transaction(() => {
+        const factura = db.prepare('SELECT * FROM facturas WHERE id = ?').get(id);
+        if (!factura) throw new Error('Factura no encontrada');
+        if (factura.estado === 'anulada') throw new Error('Esta factura ya está anulada');
+        if (!motivo || !String(motivo).trim()) throw new Error('El motivo de anulación es obligatorio');
+
+        const serieNC = factura.tipo_comprobante === 'factura' ? 'NCF001' : 'NCB001';
+        const row = db.prepare('SELECT MAX(correlativo) as max_corr FROM notas_credito WHERE serie = ?').get(serieNC);
+        const correlativo = (row?.max_corr || 0) + 1;
+        const numero = `${serieNC}-${String(correlativo).padStart(8, '0')}`;
+        const fecha = new Date().toISOString().split('T')[0];
+
+        const result = db
+          .prepare(
+            `INSERT INTO notas_credito
+             (numero, id_factura_original, id_paciente, fecha, motivo, total, tipo_comprobante, serie, correlativo)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            numero,
+            factura.id,
+            factura.id_paciente,
+            fecha,
+            String(motivo).trim(),
+            factura.total,
+            factura.tipo_comprobante,
+            serieNC,
+            correlativo
+          );
+
+        db.prepare(
+          'UPDATE facturas SET estado = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run('anulada', id);
+
+        return { id: result.lastInsertRowid, numero, success: true };
+      });
+
+      return transaccion();
+    } catch (error) {
+      console.error('Error al anular factura:', error);
+      throw error;
+    }
+  });
+
+  // Obtener notas de crédito
+  ipcMain.handle('get-notas-credito', async (_event, filtros = {}) => {
+    try {
+      const db = getDatabase();
+      let query = `
+        SELECT nc.*, f.numero as factura_numero, p.nombre as paciente_nombre
+        FROM notas_credito nc
+        LEFT JOIN facturas f ON nc.id_factura_original = f.id
+        LEFT JOIN pacientes p ON nc.id_paciente = p.id
+        WHERE 1=1`;
+      const params = [];
+
+      if (filtros.id_factura) {
+        query += ' AND nc.id_factura_original = ?';
+        params.push(filtros.id_factura);
+      }
+      if (filtros.id_paciente) {
+        query += ' AND nc.id_paciente = ?';
+        params.push(filtros.id_paciente);
+      }
+
+      query += ' ORDER BY nc.created_at DESC';
+      return db.prepare(query).all(...params);
+    } catch (error) {
+      console.error('Error al obtener notas de crédito:', error);
+      throw error;
+    }
+  });
 }
 
 module.exports = { register };

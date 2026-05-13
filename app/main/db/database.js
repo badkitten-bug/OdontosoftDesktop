@@ -507,6 +507,27 @@ function createTables() {
     )
   `);
 
+  // Tabla de notas de crédito (anulaciones de comprobantes)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notas_credito (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      numero TEXT UNIQUE NOT NULL,
+      id_factura_original INTEGER NOT NULL,
+      id_paciente INTEGER NOT NULL,
+      fecha TEXT NOT NULL,
+      motivo TEXT NOT NULL,
+      total REAL NOT NULL,
+      tipo_comprobante TEXT NOT NULL DEFAULT 'boleta',
+      serie TEXT,
+      correlativo INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (id_factura_original) REFERENCES facturas(id),
+      FOREIGN KEY (id_paciente) REFERENCES pacientes(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Migración: agregar estado 'anulada' a facturas existentes (ya soportado como string, no requiere cambio de columna)
+
   // Tabla de backups
   db.exec(`
     CREATE TABLE IF NOT EXISTS backups (
@@ -593,6 +614,8 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);
     CREATE INDEX IF NOT EXISTS idx_permisos_rol ON permisos(rol);
     CREATE INDEX IF NOT EXISTS idx_cupones_codigo ON cupones(codigo);
+    CREATE INDEX IF NOT EXISTS idx_notas_credito_factura ON notas_credito(id_factura_original);
+    CREATE INDEX IF NOT EXISTS idx_notas_credito_paciente ON notas_credito(id_paciente);
   `);
 
   // Insertar relaciones predefinidas

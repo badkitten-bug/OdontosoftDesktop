@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addPago: noauth('add-pago'),
   updatePago: noauth('update-pago'),
   deletePago: noauth('delete-pago'),
+  anularFactura: noauth('anular-factura'),
+  getNotasCredito: noauth('get-notas-credito'),
 
   // Relaciones entre entidades
   getRelaciones: noauth('get-relaciones'),

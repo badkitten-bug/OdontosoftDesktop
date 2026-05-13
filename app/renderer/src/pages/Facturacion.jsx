@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Receipt, DollarSign, Calendar, User, FileText, Edit, Trash2, Printer, Download } from 'lucide-react';
-import { getFacturas, getFactura, crearFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago, validarCupon, usarCupon } from '../services/dbService';
+import { useState, useEffect, useId } from 'react';
+import { Plus, Search, Receipt, DollarSign, Edit, Trash2, Printer, Ban } from 'lucide-react';
+import { getFacturas, getFactura, crearFacturaDirecta, crearFacturaDesdeCita, getPagosFactura, addPago, updatePago, deletePago, validarCupon, usarCupon, anularFactura } from '../services/dbService';
 import { getCitas, getPacientes, getPaciente, getTratamientosCita } from '../services/dbService';
 import { getConfiguracionClinica } from '../services/dbService';
 import { generarPDFFactura } from '../utils/pdfGenerator';
-import { exportarFacturas } from '../utils/excelExporter';
 import { formatMoneda, formatFecha, getIgvPorcentaje, getMonedaSimbolo } from '../utils/formatters';
 import { validarDNI, validarRUC } from '../utils/identidad';
 import EmptyState from '../components/EmptyState';
@@ -49,6 +48,10 @@ function Facturacion() {
   const [pagoEditando, setPagoEditando] = useState(null);
   const [codigoCupon, setCodigoCupon] = useState('');
   const [cuponAplicado, setCuponAplicado] = useState(null);
+  const [facturaAAnular, setFacturaAAnular] = useState(null);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const [anulando, setAnulando] = useState(false);
+  const motivoAnulacionId = useId();
 
   const metodosPago = [
     { value: 'efectivo', label: 'Efectivo' },
@@ -324,6 +327,8 @@ function Facturacion() {
         return <span className="badge badge-warning">Pendiente</span>;
       case 'cancelada':
         return <span className="badge badge-error">Cancelada</span>;
+      case 'anulada':
+        return <span className="badge badge-error badge-outline">Anulada</span>;
       default:
         return <span className="badge badge-ghost">{estado}</span>;
     }
@@ -332,6 +337,26 @@ function Facturacion() {
   const calcularTotalPagado = (facturaId) => {
     if (!facturaSeleccionada || facturaSeleccionada.id !== facturaId) return 0;
     return pagos.reduce((sum, pago) => sum + pago.monto, 0);
+  };
+
+  const handleAnularFactura = async () => {
+    if (!facturaAAnular) return;
+    if (!motivoAnulacion.trim()) {
+      toast.warning('Ingresa el motivo de anulación.');
+      return;
+    }
+    setAnulando(true);
+    try {
+      const result = await anularFactura(facturaAAnular.id, motivoAnulacion.trim());
+      await loadFacturas();
+      toast.success(`Comprobante anulado. Nota de crédito: ${result.numero}`);
+      setFacturaAAnular(null);
+      setMotivoAnulacion('');
+    } catch (error) {
+      toast.error(humanizeError(error, 'No se pudo anular el comprobante.'));
+    } finally {
+      setAnulando(false);
+    }
   };
 
   const handleImprimirFactura = async (factura) => {
@@ -461,6 +486,17 @@ function Facturacion() {
                             <DollarSign size={16} />
                             Pagos
                           </button>
+                          {factura.estado !== 'anulada' && factura.estado !== 'cancelada' && (
+                            <button
+                              type="button"
+                              onClick={() => { setFacturaAAnular(factura); setMotivoAnulacion(''); }}
+                              className="btn btn-sm btn-ghost text-red-500 hover:text-red-700 gap-1"
+                              title="Anular comprobante"
+                            >
+                              <Ban size={16} />
+                              Anular
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -800,6 +836,57 @@ function Facturacion() {
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => setShowModalFactura(false)}></div>
+        </div>
+      )}
+
+      {/* Modal de anulación */}
+      {facturaAAnular && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md">
+            <h3 className="font-bold text-lg mb-1 flex items-center gap-2">
+              <Ban size={20} className="text-red-500" />
+              Anular comprobante
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {facturaAAnular.numero} — {formatMoneda(facturaAAnular.total)}
+            </p>
+            <div className="alert alert-warning mb-4 text-sm">
+              Esta acción es irreversible. Se generará una nota de crédito y el comprobante quedará anulado.
+            </div>
+            <div className="form-control">
+              <label className="label" htmlFor={motivoAnulacionId}>
+                <span className="label-text font-medium">Motivo de anulación *</span>
+              </label>
+              <textarea
+                id={motivoAnulacionId}
+                className="textarea textarea-bordered w-full"
+                rows={3}
+                placeholder="Ej: Error en el monto, duplicado, paciente solicitó cancelación..."
+                value={motivoAnulacion}
+                onChange={(e) => setMotivoAnulacion(e.target.value)}
+              />
+            </div>
+            <div className="modal-action">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => { setFacturaAAnular(null); setMotivoAnulacion(''); }}
+                disabled={anulando}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn btn-error"
+                onClick={handleAnularFactura}
+                disabled={anulando || !motivoAnulacion.trim()}
+              >
+                {anulando ? <span className="loading loading-spinner loading-sm" /> : <Ban size={16} />}
+                Confirmar anulación
+              </button>
+            </div>
+          </div>
+          <button type="button" className="modal-backdrop" aria-label="Cerrar" onClick={() => { setFacturaAAnular(null); setMotivoAnulacion(''); }} />
         </div>
       )}
 

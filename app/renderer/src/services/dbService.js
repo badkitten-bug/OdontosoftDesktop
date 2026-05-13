@@ -148,6 +148,8 @@ export const deletePago = (id) => {
   return window.electronAPI.deletePago(id);
 };
 export const crearFacturaDirecta = (data) => window.electronAPI?.crearFacturaDirecta(data) || Promise.resolve({});
+export const anularFactura = (id, motivo) => window.electronAPI?.anularFactura(id, motivo) || Promise.resolve({});
+export const getNotasCredito = (filtros) => window.electronAPI?.getNotasCredito(filtros) || Promise.resolve([]);
 
 // Recordatorios
 export const getRecordatorios = (filtros) => window.electronAPI?.getRecordatorios(filtros) || Promise.resolve([]);
