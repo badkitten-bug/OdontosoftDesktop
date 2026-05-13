@@ -18,6 +18,20 @@ export function exportarAExcel(datos, nombreArchivo, nombreHoja = 'Datos') {
 }
 
 /**
+ * Exporta múltiples hojas en un solo archivo Excel.
+ * @param {Array<{nombre: string, datos: object[]}>} hojas
+ * @param {string} nombreArchivo
+ */
+export function exportarMultiHoja(hojas, nombreArchivo) {
+  const wb = XLSX.utils.book_new();
+  for (const hoja of hojas) {
+    const ws = XLSX.utils.json_to_sheet(hoja.datos.length ? hoja.datos : [{}]);
+    XLSX.utils.book_append_sheet(wb, ws, hoja.nombre.slice(0, 31));
+  }
+  XLSX.writeFile(wb, `${nombreArchivo}.xlsx`);
+}
+
+/**
  * Exporta datos a CSV
  */
 export function exportarACSV(datos, nombreArchivo) {

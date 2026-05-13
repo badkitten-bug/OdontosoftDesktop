@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, DollarSign, Calendar, Download, FileText, UserCog, AlertCircle } from 'lucide-react';
 import { getFacturas, getCitas, getPacientes, getTratamientosPopulares, getReportesOdontologos } from '../services/dbService';
-import { exportarAExcel } from '../utils/excelExporter';
+import { exportarMultiHoja } from '../utils/excelExporter';
 import { formatMoneda } from '../utils/formatters';
 import { useToast } from '../context/UIContext';
 
@@ -30,6 +30,8 @@ function Reportes() {
   const [reportesOdontologos, setReportesOdontologos] = useState([]);
   const [facturasPendientes, setFacturasPendientes] = useState([]);
   const [tasaAsistencia, setTasaAsistencia] = useState({ asistieron: 0, noAsistieron: 0 });
+  const [facturasCargadas, setFacturasCargadas] = useState([]);
+  const [citasCargadas, setCitasCargadas] = useState([]);
 
   useEffect(() => {
     loadReportes();
@@ -48,6 +50,8 @@ function Reportes() {
         getReportesOdontologos({ fecha_inicio: fechaInicio, fecha_fin: fechaFin }),
       ]);
       setReportesOdontologos(odontologosReporte);
+      setFacturasCargadas(facturas);
+      setCitasCargadas(citas);
 
       const citasFiltradas = citas;
 
@@ -121,21 +125,77 @@ function Reportes() {
   };
 
   const exportarReporte = () => {
-    const datos = [
+    const hojas = [
       {
-        'Período': `${fechaInicio} a ${fechaFin}`,
-        'Ingresos Totales': estadisticas.ingresos,
-        'Facturas': estadisticas.facturas,
-        'Facturas Pagadas': estadisticas.facturasPagadas,
-        'Facturas Pendientes': estadisticas.facturasPendientes,
-        'Citas': estadisticas.citas,
-        'Citas Completadas': estadisticas.citasCompletadas,
-        'Citas Canceladas': estadisticas.citasCanceladas,
-        'Pacientes': estadisticas.pacientes,
-        'Promedio por Factura': estadisticas.promedioFactura,
+        nombre: 'Resumen',
+        datos: [{
+          'Período': `${fechaInicio} a ${fechaFin}`,
+          'Ingresos Totales': estadisticas.ingresos,
+          'Facturas Total': estadisticas.facturas,
+          'Facturas Pagadas': estadisticas.facturasPagadas,
+          'Facturas Pendientes': estadisticas.facturasPendientes,
+          'Citas Total': estadisticas.citas,
+          'Citas Completadas': estadisticas.citasCompletadas,
+          'Citas Canceladas': estadisticas.citasCanceladas,
+          'Pacientes': estadisticas.pacientes,
+          'Promedio por Factura': estadisticas.promedioFactura.toFixed(2),
+        }],
+      },
+      {
+        nombre: 'Facturas',
+        datos: facturasCargadas.map(f => ({
+          'Número': f.numero,
+          'Tipo': f.tipo_comprobante || 'boleta',
+          'Paciente': f.paciente_nombre || '',
+          'Fecha': f.fecha,
+          'Subtotal': f.subtotal,
+          'Descuento': f.descuento,
+          'IGV': f.impuesto,
+          'Total': f.total,
+          'Estado': f.estado,
+        })),
+      },
+      {
+        nombre: 'Citas',
+        datos: citasCargadas.map(c => ({
+          'Paciente': c.paciente_nombre || '',
+          'Odontólogo': c.odontologo_nombre || '',
+          'Fecha': c.fecha,
+          'Hora': c.hora_inicio,
+          'Estado': c.estado,
+          'Asistió': c.asistio === 1 ? 'Sí' : c.asistio === 0 ? 'No' : 'No registrado',
+          'Motivo': c.motivo || '',
+        })),
+      },
+      {
+        nombre: 'Tratamientos Populares',
+        datos: tratamientosMasComunes.map(t => ({
+          'Tratamiento': t.nombre || t.tratamiento_nombre || '',
+          'Cantidad': t.cantidad || t.total_citas || 0,
+          'Ingresos': t.ingresos || 0,
+        })),
+      },
+      {
+        nombre: 'Cartera Pendiente',
+        datos: facturasPendientes.map(f => ({
+          'Número': f.numero,
+          'Paciente': f.paciente_nombre || '',
+          'Fecha': f.fecha,
+          'Total': f.total,
+          'Días Pendiente': Math.floor((Date.now() - new Date(f.fecha)) / 86400000),
+        })),
+      },
+      {
+        nombre: 'Por Odontólogo',
+        datos: reportesOdontologos.map(o => ({
+          'Odontólogo': o.odontologo_nombre || '',
+          'Citas': o.total_citas || 0,
+          'Completadas': o.citas_completadas || 0,
+          'Ingresos': o.ingresos_totales || 0,
+        })),
       },
     ];
-    exportarAExcel(datos, `Reporte_${fechaInicio}_${fechaFin}`, 'Reporte');
+    exportarMultiHoja(hojas, `Reporte_${fechaInicio}_${fechaFin}`);
   };
 
   if (loading) {
